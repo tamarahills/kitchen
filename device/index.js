@@ -4,8 +4,8 @@ var MAX_WIDTH = 2592
 var MAX_HEIGHT = 1944
 
 var opts = {
-   width: MAX_WIDTH / 2,
-   height: MAX_HEIGHT / 2,
+   width: MAX_WIDTH / 4,
+   height: MAX_HEIGHT / 4,
    delay: 0,
    quality: 100,
    output: 'jpeg',
