@@ -1,8 +1,11 @@
 var NodeWebcam = require('node-webcam')
 
+var MAX_WIDTH = 2592
+var MAX_HEIGHT = 1944
+
 var opts = {
-   width: 1280,
-   height: 720,
+   width: MAX_WIDTH / 2,
+   height: MAX_HEIGHT / 2,
    delay: 0,
    quality: 100,
    output: 'jpeg',
