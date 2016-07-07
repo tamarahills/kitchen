@@ -53,8 +53,8 @@ var metrics = new Metrics('555666777888', options);
 
 // Configure the bot API endpoint, details for your bot
 let bot = new Bot({
-    username: 'smartkitchen',
-    apiKey: 'c209bd64-0514-4d08-8bea-44387fe18964',
+    username: 'YOUR BOT NAME',
+    apiKey: 'YOUR API KEY',
     baseUrl: 'http://34c4bcd7.ngrok.io/incoming' //Replace with ur own ngrok
 });
 
