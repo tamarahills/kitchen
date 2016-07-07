@@ -1,7 +1,11 @@
 {
-    "name": "kitchen",
-    "main": "server.js",
-    "dependencies": {
-        "express": "~4.0.0"
-    }
+  "name": "kitchen",
+  "main": "server.js",
+  "author": "Tamara Hills<thills@mozilla.com>",
+  "description": "Server hosting a kikbot and an interface to identify foods",
+  "dependencies": {
+    "@kikinteractive/kik": "2.x.x",
+    "body-parser": "^1.15.2",
+    "express": "~4.0.0"
+  }
 }
