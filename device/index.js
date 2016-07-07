@@ -10,4 +10,4 @@ var opts = {
 }
 
 var webcam = NodeWebcam.create(opts);
-webcam.capture('test_picture');
+webcam.capture(__dirname + '/test_picture');
