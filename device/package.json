@@ -1,0 +1,10 @@
+{
+  "name": "kitchen-device-node",
+  "version": "1.0.0",
+  "description": "Kitchen",
+  "author": "",
+  "license": "MPL-2.0",
+  "dependencies": {
+    "node-webcam": "^0.2.1"
+  }
+}
