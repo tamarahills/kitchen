@@ -53,9 +53,9 @@ var metrics = new Metrics('555666777888', options);
 
 // Configure the bot API endpoint, details for your bot
 let bot = new Bot({
-    username: 'YOUR BOT NAME',
-    apiKey: 'YOUR API KEY',
-    baseUrl: 'http://34c4bcd7.ngrok.io/incoming' //Replace with ur own ngrok
+//    username: 'YOUR BOT NAME',
+//    apiKey: 'YOUR API KEY',
+//    baseUrl: 'http://34c4bcd7.ngrok.io/incoming' //Replace with ur own ngrok
 });
 
 // This is a middleware statement and needs to stay here and not be rearranged.
@@ -135,8 +135,9 @@ bot.onTextMessage((message, next) => {
       users.addItemToDB(message.from, arrayOfStrings[1]);
       message.reply('added ' + arrayOfStrings[1]);
     } else if (arrayOfStrings[0].toLowerCase().localeCompare('rm') == 0) {
-      users.removeItemFromDB(message.from, arrayOfStrings[1]);
-      message.reply('removed ' + arrayOfStrings[1]);
+      users.removeItemFromDB(message.from, arrayOfStrings[1], function() {
+        message.reply('removed ' + arrayOfStrings[1]);
+      });
     } else {
       next();
     }
@@ -148,9 +149,10 @@ bot.onTextMessage((message, next) => {
 // Bot Handler for getting inventory ist
 bot.onTextMessage((message, next) => {
   if (message.body.toLowerCase().localeCompare('get') == 0) {
-    var list = users.getInventory(message.from);
-    message.reply(list);
-    metrics.recordEvent("inventory", "get", "request", 1);
+    users.getInventory(message.from, function(list) {
+      message.reply(list);
+      metrics.recordEvent("inventory", "get", "request", 1);
+    });
   } else {
     next();
   }

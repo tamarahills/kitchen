@@ -1,13 +1,30 @@
+var mysql = require('promise-mysql');
+
 function UserMap() {
-   this.map = new Map();
-   //TODO:  need to initialize this from the Database.
-   //TODO: Store in the map as a JSON object.  Will need to format each
-   // user from DB like this to insert in the map.
-   var json = {
-     state: 0,
-     currentItem: 'none'
-   }
-   this.map.set('tamarajhills', json);
+  var self = this;
+  this.map = new Map();
+  this.pool = mysql.createPool({
+    connectionLimit : 10,
+    host     : "<my sql instance hostname here>",
+    port     : 3306,
+    user     : "<your user here",
+    password : "<your password here",
+    database : "kitchen"
+  });
+
+  var connection = this.pool.getConnection();
+  this.pool.query('SELECT userid FROM Profile').then(function(rows) {
+    console.log('result:length:' + rows.length);
+    for (var i in rows) {
+      console.log('result:' + rows[i].userid);
+      var json = {
+        state: 0,
+        currentItem: 'none'
+      };
+      self.map.set(rows[i].userid, json);
+    }
+    console.log('map size: ' + self.map.size);
+  });
 }
 
 UserMap.prototype.getStateByUser = function(user) {
@@ -44,6 +61,7 @@ UserMap.prototype.setCurrentItem = function(user, item) {
     var data = self.map.get(user);
     data.currentItem = item;
     self.map.set(user, data);
+    console.log('setCurrentItem:' + user +':' + item);
   }
 }
 
@@ -51,37 +69,73 @@ UserMap.prototype.getCurrentItem = function(user) {
   var self = this;
   if (self.map.has(user)) {
     var data = self.map.get(user);
-    console.log('Found user: ' + user + 'currentItem: ' + data.currentItem);
+    console.log('GetCurrentItem: ' + user + 'currentItem: ' + data.currentItem);
     return data.currentItem;
+  } else {
+    console.log('user not found:' + user);
   }
 }
 
 UserMap.prototype.addCurrentItemToDB = function(user) {
   var self = this;
-  //TODO HERE: make the call to the database to add the item.
+  var item = self.getCurrentItem(user);
+  var queryString = 'INSERT INTO Inventory VALUES (' + '\'' + user +'\',\'' +
+    item + '\')';
+  console.log('QueryString: ' + queryString);
+  this.pool.query(queryString, function (error, results, fields) {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log(item + ' inserted');
+    }
+  });
   self.setCurrentItem(user, 'none');
 }
 
 UserMap.prototype.addItemToDB = function(user, item) {
   var self = this;
-  //TODO HERE: make the call to the database to add the item.
-  //Make sure to use the item passed in here and not the currentItem. Reset the
-  //currentItem to be safe.
+  var queryString = 'INSERT INTO Inventory VALUES (' + '\'' + user +'\',\'' +
+    item + '\')';
+  console.log('QueryString: ' + queryString);
+  this.pool.query(queryString, function (error, results, fields) {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log(item + ' inserted');
+    }
+  });
   self.setCurrentItem(user, 'none');
 }
 
-UserMap.prototype.removeItemFromDB = function(user, item) {
+UserMap.prototype.removeItemFromDB = function(user, item, done) {
   var self = this;
-  //TODO HERE: make the call to the database to remove the item.
-  //Make sure to use the item passed in here and not the currentItem. Reset the
-  //currentItem to be safe.
+  var queryString = 'DELETE FROM Inventory WHERE userid=' +'\'' + user +
+    '\' AND ingredient=' + '\'' + item + '\'';
+  console.log('QueryString: ' + queryString);
+  this.pool.query(queryString).then(function(error) {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log(item + ' deleted');
+    }
+    done();
+  });
   self.setCurrentItem(user, 'none');
 }
 
-UserMap.prototype.getInventory = function(user) {
+UserMap.prototype.getInventory = function(user, done) {
   var self = this;
-  //TODO HERE:  Call DB and get a list of the user's inventory and return it.
-  return '\npotatoes, \nonions, \ncarrots, \nground beef, \nsalt, \npepper, \nchocolate frosting';
+  var queryString = 'SELECT ingredient FROM Inventory WHERE userid=' +'\'' + user +'\'';
+  console.log('QueryString: ' + queryString);
+  this.pool.query(queryString).then(function(rows) {
+    console.log('result:length:' + rows.length);
+    var list = 'Inventory:'
+    for (var i in rows) {
+      list = list.concat('\n' + rows[i].ingredient);
+    }
+    console.log('List is: ' + list);
+    done(list);
+  });
 }
 
 
