@@ -16,11 +16,10 @@ def Blink(numTimes,speed):
 		time.sleep(speed) ## Wait
 		GPIO.output(18,False) ## Switch off pin 18
 		time.sleep(speed)
-		GPIO.cleanup()
-
 
 while True:
 	input_state = GPIO.input(17)
 	if input_state == False:
-		Blink(10, 100)
+		print "Triggered"
+		Blink(10, 0.2)
 		time.sleep(0.2)
