@@ -21,5 +21,5 @@ while True:
 	input_state = GPIO.input(17)
 	if input_state == False:
 		print "Triggered"
-		Blink(10, 0.2)
+		Blink(10, 0.1)
 		time.sleep(0.2)
