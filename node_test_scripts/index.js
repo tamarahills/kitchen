@@ -10,8 +10,12 @@ board.on("ready", function() {
 	var button = new five.Button('P1-11');
  	var led = new five.Led('P1-13');
 
+ 	button.on('up', function() {
+ 		console.log('button triggered (up)');
+ 	});
+
  	button.on('down', function() {
-		console.log('button triggered');
+		console.log('button triggered (down)');
 		led.blink();
 		/*
 		takePicture(function() {
