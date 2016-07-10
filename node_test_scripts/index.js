@@ -12,12 +12,15 @@ board.on("ready", function() {
 		isPullup: true
 	});
  	var led = new five.Led('P1-12');
+ 	led.off();
 
  	button.on('down', function() {
 		console.log('button triggered (down)');
 		led.blink();
 		takePicture(function() {
+			console.log('camera done taking picture.');
 			led.stop();
+			led.off();
 		});
 	});
 });
