@@ -7,7 +7,10 @@ var board = new five.Board({
 });
 
 board.on("ready", function() {
-	var button = new five.Button('P1-11');
+	var button = new five.Button({
+		pin: 'P1-11',
+		isPullup: true
+	});
  	var led = new five.Led('P1-13');
 
  	button.on('up', function() {
