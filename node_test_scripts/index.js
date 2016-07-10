@@ -11,20 +11,14 @@ board.on("ready", function() {
 		pin: 'P1-11',
 		isPullup: true
 	});
- 	var led = new five.Led('P1-13');
-
- 	button.on('up', function() {
- 		console.log('button triggered (up)');
- 	});
+ 	var led = new five.Led('P1-12');
 
  	button.on('down', function() {
 		console.log('button triggered (down)');
 		led.blink();
-		/*
 		takePicture(function() {
 			led.stop();
 		});
-		*/
 	});
 });
 
