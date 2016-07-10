@@ -5,6 +5,8 @@
   "author": "",
   "license": "MPL-2.0",
   "dependencies": {
-    "node-webcam": "^0.2.1"
+    "johnny-five": "^0.9.59",
+    "node-webcam": "^0.2.1",
+    "raspi-gpio": "^2.3.0"
   }
 }

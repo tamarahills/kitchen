@@ -1,16 +1,37 @@
 var NodeWebcam = require('node-webcam')
+var five = require('johnny-five');
+var Raspi = require('raspi-io');
 
-var MAX_WIDTH = 2592
-var MAX_HEIGHT = 1944
+var board = new five.Board({
+  io: new Raspi()
+});
 
-var opts = {
-   width: MAX_WIDTH / 4,
-   height: MAX_HEIGHT / 4,
-   delay: 0,
-   quality: 100,
-   output: 'jpeg',
-   verbose: true
+board.on("ready", function() {
+	var buton = new five.Button('GPIO17');
+ 	var led = new five.Led('GPIO18');
+
+ 	button.on('down', function() {
+		console.log('button triggered');
+		led.blink();
+		takePicture(function() {
+			led.stop();
+		});
+	});
+});
+
+function takePicture (cb) {
+	var MAX_CAMERA_WIDTH = 2592
+	var MAX_CAMERA_HEIGHT = 1944
+
+	var opts = {
+	   width: MAX_CAMERA_WIDTH / 4,
+	   height: MAXCAMERA__HEIGHT / 4,
+	   delay: 0,
+	   quality: 100,
+	   output: 'jpeg',
+	   verbose: true
+	}
+
+	var webcam = NodeWebcam.create(opts);
+	webcam.capture(__dirname + '/test_picture', cb);
 }
-
-var webcam = NodeWebcam.create(opts);
-webcam.capture(__dirname + '/test_picture');
