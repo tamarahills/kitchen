@@ -25,7 +25,7 @@ function takePicture (cb) {
 
 	var opts = {
 	   width: MAX_CAMERA_WIDTH / 4,
-	   height: MAXCAMERA__HEIGHT / 4,
+	   height: MAX_CAMERA_HEIGHT / 4,
 	   delay: 0,
 	   quality: 100,
 	   output: 'jpeg',
