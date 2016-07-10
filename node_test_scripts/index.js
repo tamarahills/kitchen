@@ -13,9 +13,11 @@ board.on("ready", function() {
  	button.on('down', function() {
 		console.log('button triggered');
 		led.blink();
+		/*
 		takePicture(function() {
 			led.stop();
 		});
+		*/
 	});
 });
 
