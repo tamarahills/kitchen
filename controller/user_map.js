@@ -1,8 +1,11 @@
 var mysql = require('promise-mysql');
+var https = require('https');
+var OVEN_KEY = '{Your key here}';
 
 function UserMap() {
   var self = this;
   this.map = new Map();
+  this.recipeMap = new Map();
   this.pool = mysql.createPool({
     connectionLimit : 10,
     host     : "<my sql instance hostname here>",
@@ -138,5 +141,114 @@ UserMap.prototype.getInventory = function(user, done) {
   });
 }
 
+UserMap.prototype.getMealsForUser = function(user, done) {
+  var self = this;
+  // Clear out any previous meals search:
+  self.recipeMap.delete(user);
+  var bigOvenApiKey = OVEN_KEY;
+  // Order the ingredients randomly so we can call 'meals' multiple times and get
+  // different results.  We can only pass 3 ingredients.
+  var queryString = 'SELECT ingredient FROM Inventory WHERE userid=' +'\'' + user +'\' ORDER BY RAND() LIMIT 3';
+  console.log('QueryString: ' + queryString);
+  this.pool.query(queryString).then(function(rows) {
+    if (rows.length == 0) {
+      done('You have no inventory.  Try adding some items to your inventory');
+    } else {
+      var params = '&include_primarycat=maindish,sidedish,appetizers&include_ing=';
+      var i = 0;
+      while (i < 3 && i < rows.length) {
+        params = params.concat(rows[i].ingredient);
+        console.log(rows[i].ingredient);
+        i++;
+        if (i < 3 && i < rows.length) {
+          params = params.concat(',');
+        }
+      }
+      params = params.concat('&api_key=' +bigOvenApiKey);
+
+      console.log('Params are: ' + params);
+
+      var options = {
+        host: 'api2.bigoven.com',
+        path: '/recipes?pg=1&rpp=20' + params,
+        port: 443,
+        method: 'GET'
+      };
+
+      console.log('Path: ' + options.path);
+
+      https.get(options, function(res) {
+        var data = '';
+        console.log('STATUS: ' + res.statusCode);
+        res.setEncoding('utf8');
+        res.on('data', function (chunk) {
+          data += chunk;
+        });
+
+        res.on('end',function(){
+          var obj = JSON.parse(data);
+          var recipeList = '';
+          if (obj.Results.length == 0) {
+            done('No recipes found');
+          } else {
+            var recipes = [];
+            for (var i = 0; i < obj.Results.length; i++) {
+              recipes.push(obj.Results[i].RecipeID);
+              recipeList = recipeList.concat(i + '. ' + obj.Results[i].Title + '\n');
+              console.log(obj.Results[i].Title);
+            }
+            self.recipeMap.set(user, recipes);
+            done('Recipes:\n' + recipeList);
+          }
+        });
+      })
+    }
+  });
+}
+
+UserMap.prototype.getRecipe = function(user, recipeIndex, done) {
+  var self = this;
+
+  if (self.recipeMap.has(user)) {
+    var userRecipeArray = self.recipeMap.get(user);
+    if (recipeIndex > userRecipeArray.length) {
+      done('Recipe Index not found');
+    } else {
+      var recipeId = userRecipeArray[recipeIndex];
+      console.log('RecipeIndex: ' + recipeIndex);
+      console.log('RecipeID: ' + recipeId);
+      var options = {
+        host: 'api2.bigoven.com',
+        path: '/recipe/' + recipeId + '?api_key=' + OVEN_KEY,
+        port: 443,
+        method: 'GET'
+      };
+
+      console.log('Path: ' + options.path);
+
+      https.get(options, function(res) {
+        var data = '';
+        console.log('STATUS: ' + res.statusCode);
+        res.setEncoding('utf8');
+        res.on('data', function (chunk) {
+          data += chunk;
+        });
+
+        res.on('end', function() {
+          var obj = JSON.parse(data);
+          var recipeReturned = obj.Title + '\nIngredients:\n';
+          for (var i = 0; i < obj.Ingredients.length; i++) {
+            console.log('Ingredient:' + obj.Ingredients[i].Name);
+            recipeReturned = recipeReturned.concat(obj.Ingredients[i].Name + '\n');
+          }
+          recipeReturned = recipeReturned.concat('Directions: ' + obj.WebURL);
+          done(recipeReturned);
+        });
+      })
+    }
+  } else {
+    done('You must request recipes first.');
+  }
+}
 
 module.exports = UserMap;

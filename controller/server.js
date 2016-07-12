@@ -99,8 +99,10 @@ bot.onTextMessage((message, next) => {
 // Bot Handler for meals
 bot.onTextMessage((message, next) => {
   if (message.body.toLowerCase().localeCompare('meals') == 0) {
-    message.reply('Coming soon!');
-    metrics.recordEvent("meals", "request", "success", 1);
+    metrics.recordEvent('meals', 'request', 'success', 1);
+    users.getMealsForUser(message.from, function(meals) {
+      message.reply('Meals are: ' + meals);
+    });
   } else {
     next();
   }
@@ -155,6 +157,18 @@ bot.onTextMessage((message, next) => {
     });
   } else {
     next();
+  }
+});
+
+// This handler gets the recipe.  The user sends an index of the recipe they want
+// The handler will return the recipe to the bot.
+bot.onTextMessage((message, next) => {
+  if (isNaN(message.body)) {
+    next();
+  } else {
+    users.getRecipe(message.from, parseInt(message.body), function(recipe) {
+      message.reply(recipe);
+    });
   }
 });
 
