@@ -9,9 +9,16 @@ var Metrics = require('./metrics');
 var bodyParser = require('body-parser');
 let util = require('util');
 let http = require('http');
+var nconf = require('nconf');
 let Bot = require('@kikinteractive/kik');
 var app = express();
 var users = new UserMap();
+// Use nconf to get the configuration for different APIs we are using.
+nconf.argv()
+   .env()
+   .file({ file: './config.json' });
+
+
 var logger = function() {
   var args = Array.from(arguments);
   console.log(args.join(' '));
@@ -50,12 +57,12 @@ var metrics = new Metrics('555666777888', options);
  * help - prints out the list of commands.
 */
 
-
+var kik = nconf.get('kik');
 // Configure the bot API endpoint, details for your bot
 let bot = new Bot({
-//    username: 'YOUR BOT NAME',
-//    apiKey: 'YOUR API KEY',
-//    baseUrl: 'http://34c4bcd7.ngrok.io/incoming' //Replace with ur own ngrok
+  username: kik.username,
+  apiKey: kik.apiKey,
+  baseUrl: kik.baseUrl
 });
 
 // This is a middleware statement and needs to stay here and not be rearranged.
