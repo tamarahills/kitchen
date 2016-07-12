@@ -10,6 +10,17 @@
  |curl -H "Content-Type: application/json" -d '{"userid":"tamarajhills", "item":"pears"}' http://127.0.0.1:8080/item|
  userid is your kik userid
 
- You can manually provision your kik userid in the UserMap.  Database access and provisioning is coming soon.
+ You can manually provision your kik userid in the UserMap with the SQL statement |insert into Profile values('kik_userid')|.  Database access and provisioning is coming soon.
 
  To run the server locally, use ngrok.  Replace the ngrok URL with yours on the baseUrl.  Make sure to leave the /incoming portion.  Replace the bot name with your bot name and API key.
+
+ ## Setting up the KikBot
+ Download the Kik Messenger from the iTunes AppStore or Google Play.  Next, search for the user 'smartkitchen' and then it will give you an option to start chatting with the bot.  You can use the following set of commands with the Bot:
+
+ * add <item> - adds item to the inventory
+ * rm <item> - removes item from the inventory
+ * get - returns a list of the users inventory to them in the bot
+ * meals - returns a list of meals the user can cook with their inventory
+ * y - confirms an item recognized
+ * n - confirms that an item was NOT recognized
+ * help - prints out the list of commands.
