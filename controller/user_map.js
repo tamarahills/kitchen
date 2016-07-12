@@ -1,18 +1,25 @@
 var mysql = require('promise-mysql');
 var https = require('https');
-var OVEN_KEY = '{Your key here}';
+var nconf = require('nconf');
 
 function UserMap() {
   var self = this;
   this.map = new Map();
   this.recipeMap = new Map();
+  // Use nconf to get the configuration for different APIs we are using.
+  nconf.argv()
+     .env()
+     .file({ file: './config.json' });
+  this.bigOvenApiKey = nconf.get('bigOvenApiKey');
+
+  var db = nconf.get('db');
   this.pool = mysql.createPool({
     connectionLimit : 10,
-    host     : "<my sql instance hostname here>",
-    port     : 3306,
-    user     : "<your user here",
-    password : "<your password here",
-    database : "kitchen"
+    host     : db.host,
+    port     : db.port,
+    user     : db.user,
+    password : db.password,
+    database : db.database
   });
 
   var connection = this.pool.getConnection();
@@ -145,7 +152,6 @@ UserMap.prototype.getMealsForUser = function(user, done) {
   var self = this;
   // Clear out any previous meals search:
   self.recipeMap.delete(user);
-  var bigOvenApiKey = OVEN_KEY;
   // Order the ingredients randomly so we can call 'meals' multiple times and get
   // different results.  We can only pass 3 ingredients.
   var queryString = 'SELECT ingredient FROM Inventory WHERE userid=' +'\'' + user +'\' ORDER BY RAND() LIMIT 3';
@@ -164,7 +170,7 @@ UserMap.prototype.getMealsForUser = function(user, done) {
           params = params.concat(',');
         }
       }
-      params = params.concat('&api_key=' +bigOvenApiKey);
+      params = params.concat('&api_key=' + self.bigOvenApiKey);
 
       console.log('Params are: ' + params);
 
@@ -219,7 +225,7 @@ UserMap.prototype.getRecipe = function(user, recipeIndex, done) {
       console.log('RecipeID: ' + recipeId);
       var options = {
         host: 'api2.bigoven.com',
-        path: '/recipe/' + recipeId + '?api_key=' + OVEN_KEY,
+        path: '/recipe/' + recipeId + '?api_key=' + self.bigOvenApiKey,
         port: 443,
         method: 'GET'
       };

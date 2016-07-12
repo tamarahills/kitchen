@@ -10,6 +10,8 @@
  *
  */
 const https = require("https");
+var nconf = require('nconf');
+
 
 /*
  * Constructor - Metrics(clientId, options)
@@ -42,6 +44,11 @@ function Metrics(clientId, options) {
     this.app_platform = options.app_platform || '';
     this.arch = options.arch || '';
     this.logger = options.logger;
+    // Use nconf to get the configuration for different APIs we are using.
+    nconf.argv()
+       .env()
+       .file({ file: './config.json' });
+    this.analyticsProperty = nconf.get('analytics');
 }
 
 Metrics.prototype = {
@@ -98,7 +105,7 @@ Metrics.prototype = {
             encodeURIComponent(self.app_platform);
             encodeURIComponent(self.arch);
 
-            var event_string = ('v=1&t=event&tid=UA-77033033-1&cid=' + self.clientId +
+            var event_string = ('v=1&t=event&tid=' + self.analyticsProperty + '&cid=' + self.clientId +
                                 '&ec=' + event_category +
                                 '&ea=' + event_action +
                                 '&el=' + event_label +
