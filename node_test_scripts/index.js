@@ -25,6 +25,7 @@ board.on("ready", function() {
 		downTimes++;
 		if (!processTimeout) {
 			processTimeout = setTimeout(() => {
+				console.log('processing num times:', downTimes);
 				if (downTimes === 1) {
 					// Watson
 					led.blink();
