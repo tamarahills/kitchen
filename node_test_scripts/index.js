@@ -2,6 +2,8 @@ var NodeWebcam = require('node-webcam')
 var five = require('johnny-five');
 var Raspi = require('raspi-io');
 
+var BUTTON_DOUBLE_CLICK_TIMEOUT = 300
+
 var board = new five.Board({
   io: new Raspi(),
   repl: false
@@ -15,14 +17,34 @@ board.on("ready", function() {
  	var led = new five.Led('P1-12');
  	led.off();
 
+ 	var downTimes = 0;
+ 	var processTimeout = null;
+
  	button.on('down', function() {
 		console.log('button triggered (down)');
-		led.blink();
-		takePicture(function() {
-			console.log('camera done taking picture.');
-			led.stop();
-			led.off();
-		});
+		downTimes++;
+		if (!processTimeout) {
+			processTimeout = setTimeout(() => {
+				if (downTimes === 1) {
+					// Watson
+					led.blink();
+				} else if (downTimes >= 2) {
+					// Barcode
+					led.on();
+				}
+
+				takePicture(function() {
+					console.log('camera done taking picture.');
+					led.stop();
+					led.off();
+
+					clearTimeout(processTimeout);
+					processTimeout = null;
+
+					downTimes = 0;
+				});
+			}, BUTTON_DOUBLE_CLICK_TIMEOUT)
+		}
 	});
 });
 
