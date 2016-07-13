@@ -17,6 +17,12 @@ board.on("ready", function() {
  	var led = new five.Led('P1-12');
  	led.off();
 
+ 	// Toggle LED on and off to signal startup
+ 	led.on();
+ 	setTimeout(function() {
+ 		led.off();
+ 	}, 1500);
+
  	var downTimes = 0;
  	var processTimeout = null;
 
