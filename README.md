@@ -45,3 +45,7 @@ Add a reboot command:
 ```
 @reboot sudo <path to repo>/device/run_node_script &
 ```
+
+## Hardware
+
+<img src="https://raw.githubusercontent.com/KevinGrandon/kitchen/master/hardware/fritzing_kitchen.png" width="300">
