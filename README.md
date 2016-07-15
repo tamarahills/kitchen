@@ -24,3 +24,24 @@
  * y - confirms an item recognized
  * n - confirms that an item was NOT recognized
  * help - prints out the list of commands.
+
+
+## Device Software Installation
+
+Clone the repository.
+
+Install dependencies.
+```
+npm install
+```
+
+Hookup the node script to the crontab to start it when rebooting.
+Open crontab:
+```
+sudo crontab -e
+```
+
+Add a reboot command:
+```
+@reboot sudo <path to repo>/device/run_node_script &
+```
