@@ -43,5 +43,5 @@ sudo crontab -e
 
 Add a reboot command:
 ```
-@reboot sudo node <path to repo>/index.js &
+@reboot sudo <path to repo>/device/run_node_script &
 ```
