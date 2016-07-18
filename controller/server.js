@@ -44,6 +44,7 @@ var options = {
  *  "inventory", "barcode identify", "success", 1
  *  "inventory", "barcode identify", "fail", 1
  *  "meals", "request", "success", 1
+ *  "recipe", "request", "success", 1
  */
 var metrics = new Metrics('555666777888', options);
 
@@ -175,6 +176,7 @@ bot.onTextMessage((message, next) => {
   } else {
     users.getRecipe(message.from, parseInt(message.body), function(recipe) {
       message.reply(recipe);
+      metrics.recordEvent("recipe", "request", "success", 1);
     });
   }
 });
