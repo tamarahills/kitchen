@@ -1,6 +1,6 @@
-//ßvar NodeWebcam = require('node-webcam')
-//var five = require('johnny-five');
-//var Raspi = require('raspi-io');
+var NodeWebcam = require('node-webcam')
+var five = require('johnny-five');
+var Raspi = require('raspi-io');
 var http = require('http');
 var watson = require('watson-developer-cloud');
 var fs = require('fs');
@@ -134,7 +134,6 @@ function processPicture() {
     } else {
       postToServer('NoResults');
     }
-
   });
 
   function postToServer(itemString) {
