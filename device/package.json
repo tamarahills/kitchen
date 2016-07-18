@@ -8,6 +8,7 @@
     "johnny-five": "^0.9.59",
     "node-webcam": "^0.2.1",
     "raspi-io": "^6.1.0",
-    "watson-developer-cloud": "1.12.2"
+    "watson-developer-cloud": "1.12.2",
+    "nconf" : "0.8.4"
   }
 }

@@ -1,10 +1,17 @@
-var NodeWebcam = require('node-webcam')
-var five = require('johnny-five');
-var Raspi = require('raspi-io');
+//ßvar NodeWebcam = require('node-webcam')
+//var five = require('johnny-five');
+//var Raspi = require('raspi-io');
+var http = require('http');
 var watson = require('watson-developer-cloud');
 var fs = require('fs');
+var nconf = require('nconf');
 
 var BUTTON_DOUBLE_CLICK_TIMEOUT = 300
+
+// Use nconf to get the configuration for the device.
+nconf.argv()
+   .env()
+   .file({ file: './config.json' });
 
 var board = new five.Board({
   io: new Raspi(),
@@ -132,8 +139,7 @@ function processPicture() {
 
   function postToServer(itemString) {
     var post_options = {
-//      host: 'controller-dev.us-east-1.elasticbeanstalk.com',
-      host: '127.0.0.1',
+      host: nconf.get('host'),
       port: '8080',
       path: '/item',
       method: 'POST',
@@ -147,11 +153,10 @@ function processPicture() {
     });
     // post the data
     var post_data = {
-      //TODO: read this from file as an id.
-      userid: 'tamarajhills',
+      userid: nconf.get('user_key'),
       item: itemString
     };
-    post_req.write(event_string);
+    post_req.write(JSON.stringify(post_data));
     post_req.end();
   }
 }
