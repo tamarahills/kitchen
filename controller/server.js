@@ -5,6 +5,7 @@
 var express = require('express');
 var port    =   process.env.PORT || 8080;
 var UserMap = require('./user_map');
+var Logger = require('./logger');
 var Metrics = require('./metrics');
 var bodyParser = require('body-parser');
 let util = require('util');
@@ -13,15 +14,15 @@ var nconf = require('nconf');
 let Bot = require('@kikinteractive/kik');
 var app = express();
 var users = new UserMap();
+var logger = new Logger().getLogger();
 // Use nconf to get the configuration for different APIs we are using.
 nconf.argv()
    .env()
    .file({ file: './config.json' });
 
-
-var logger = function() {
+var metrics_logger = function() {
   var args = Array.from(arguments);
-  console.log(args.join(' '));
+  logger.info(args.join(' '));
 };
 var options = {
   locale: 'en-us',
@@ -34,7 +35,7 @@ var options = {
   app_build_id: '1.0',
   app_platform: 'AWS',
   arch: 'node',
-  logger: logger
+  logger: metrics_logger
 };
 /*
  * The list of metrics being sent are:
@@ -67,17 +68,23 @@ let bot = new Bot({
 
 // This is a middleware statement and needs to stay here and not be rearranged.
 app.use(bot.incoming(), function(req, res, next) {
-  console.log(req.originalUrl);
-  console.log(req.baseUrl);
-  console.log(req.path);
+  // It seems only the originalUrl is interesting, for now not logging the others.
+  logger.info('originalUrl:', req.originalUrl);
+/*
+  logger.info(req.baseUrl);
+  logger.info(req.path);
+*/
   next();
 });
 
 // This is a middleware statement and needs to stay here and not be rearranged.
 app.use('/item', function(req, res, next) {
-  console.log(req.originalUrl); // '/admin/new'
-  console.log(req.baseUrl); // '/admin'
-  console.log(req.path); // '/new'
+  // It seems only the originalUrl is interesting, for now not logging the others.
+  logger.info('originalUrl:', req.originalUrl); // '/admin/new'
+/*
+  logger.info(req.baseUrl); // '/admin'
+  logger.info(req.path); // '/new'
+*/
   next();
 });
 
@@ -91,7 +98,7 @@ bot.updateBotConfiguration();
 bot.onTextMessage((message, next) => {
   // Check that it's an authenticated user (only need to check on first message)
   if (users.isUser(message.from)) {
-    console.log('Received a bot message from ' + message.from);
+    logger.info('Received a bot message from ' + message.from);
     if (message.type == 'text') {
       next();
     } else {
@@ -99,7 +106,7 @@ bot.onTextMessage((message, next) => {
     }
   } else {
     message.reply('Unauthorized');
-    console.log('Unauthorized user: ' + message.from);
+    logger.info('Unauthorized user: ' + message.from);
   }
 });
 
@@ -139,7 +146,7 @@ bot.onTextMessage((message, next) => {
   var arrayOfStrings = message.body.toLowerCase().split(' ');
   // TODO: This is really needs to allow for a string with spaces (e.g. 'green pepper')
   if (arrayOfStrings.length >= 2) {
-    console.log(arrayOfStrings[0], arrayOfStrings[1]);
+    logger.info(arrayOfStrings[0], arrayOfStrings[1]);
     if (arrayOfStrings[0].toLowerCase().localeCompare('add') == 0) {
       users.addItemToDB(message.from, arrayOfStrings[1]);
       message.reply('added ' + arrayOfStrings[1]);
@@ -223,11 +230,11 @@ app.use(bodyParser.json());
  *  rec_method - barcode|visual
  */
 app.post('/item',  function(req, res) {
-  console.log('got an item post');
+  logger.info('got an item post');
   var userid = req.body.userid;
   var item = req.body.item;
   var type = req.body.rec_type || 'visual';
-  console.log('userid: ' + userid + '. item: ' + item);
+  logger.info('userid: ' + userid + '. item: ' + item);
   if (users.isUser(userid)) { //TODO:  Check for undefined
     users.setStateByUser(userid, 0);
     bot.send(Bot.Message.text('Hey, is this a(n): ' + item + '?  Type (y)es or (n)o'), userid);
@@ -235,7 +242,7 @@ app.post('/item',  function(req, res) {
     users.setCurrentItem(userid, item);
     res.status(200).send('OK');
   } else {
-    console.log('User not found.');
+    logger.info('User not found.');
     res.status(401).send('Unauthorized');
   }
 });
@@ -251,5 +258,5 @@ app.get('/about', function(req, res) {
 
 // Start the server listening.
 app.listen(process.env.PORT || 8080, function() {
-	console.log('Server started on port ' + (process.env.PORT || 8080));
+	logger.info('Server started on port ' + (process.env.PORT || 8080));
 });

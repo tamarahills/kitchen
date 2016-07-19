@@ -1,6 +1,9 @@
 var mysql = require('promise-mysql');
 var https = require('https');
 var nconf = require('nconf');
+var Logger = require('./logger');
+
+var logger = new Logger().getLogger();
 
 function UserMap() {
   var self = this;
@@ -24,23 +27,23 @@ function UserMap() {
 
   var connection = this.pool.getConnection();
   this.pool.query('SELECT userid FROM Profile').then(function(rows) {
-    console.log('result:length:' + rows.length);
+    logger.info('result:length:' + rows.length);
     for (var i in rows) {
-      console.log('result:' + rows[i].userid);
+      logger.info('result:' + rows[i].userid);
       var json = {
         state: 0,
         currentItem: 'none'
       };
       self.map.set(rows[i].userid, json);
     }
-    console.log('map size: ' + self.map.size);
+    logger.info('map size: ' + self.map.size);
   });
 }
 
 UserMap.prototype.getStateByUser = function(user) {
   var self = this;
   if (self.map.has(user)) {
-    console.log('Found user: ' + user);
+    logger.info('Found user: ' + user);
     return self.map.get(user).state;
   } else {
     return 'nosuchuser';
@@ -50,7 +53,7 @@ UserMap.prototype.getStateByUser = function(user) {
 UserMap.prototype.setStateByUser = function(user, state) {
   var self = this;
   if (self.map.has(user)) {
-    console.log('Found user: ' + user);
+    logger.info('Found user: ' + user);
     var data = self.map.get(user);
     data.state = state;
     self.map.set(user, data);
@@ -67,11 +70,11 @@ UserMap.prototype.isUser = function(user) {
 UserMap.prototype.setCurrentItem = function(user, item) {
   var self = this;
   if (self.map.has(user)) {
-    console.log('Found user: ' + user);
+    logger.info('Found user: ' + user);
     var data = self.map.get(user);
     data.currentItem = item;
     self.map.set(user, data);
-    console.log('setCurrentItem:' + user +':' + item);
+    logger.info('setCurrentItem:' + user +':' + item);
   }
 }
 
@@ -79,10 +82,10 @@ UserMap.prototype.getCurrentItem = function(user) {
   var self = this;
   if (self.map.has(user)) {
     var data = self.map.get(user);
-    console.log('GetCurrentItem: ' + user + 'currentItem: ' + data.currentItem);
+    logger.info('GetCurrentItem: ' + user + 'currentItem: ' + data.currentItem);
     return data.currentItem;
   } else {
-    console.log('user not found:' + user);
+    logger.info('user not found:' + user);
   }
 }
 
@@ -91,12 +94,12 @@ UserMap.prototype.addCurrentItemToDB = function(user) {
   var item = self.getCurrentItem(user);
   var queryString = 'INSERT INTO Inventory VALUES (' + '\'' + user +'\',\'' +
     item + '\')';
-  console.log('QueryString: ' + queryString);
+  logger.info('QueryString: ' + queryString);
   this.pool.query(queryString, function (error, results, fields) {
     if (error) {
-      console.log(error);
+      logger.error(error);
     } else {
-      console.log(item + ' inserted');
+      logger.info(item + ' inserted');
     }
   });
   self.setCurrentItem(user, 'none');
@@ -106,12 +109,12 @@ UserMap.prototype.addItemToDB = function(user, item) {
   var self = this;
   var queryString = 'INSERT INTO Inventory VALUES (' + '\'' + user +'\',\'' +
     item + '\')';
-  console.log('QueryString: ' + queryString);
+  logger.info('QueryString: ' + queryString);
   this.pool.query(queryString, function (error, results, fields) {
     if (error) {
-      console.log(error);
+      logger.info(error);
     } else {
-      console.log(item + ' inserted');
+      logger.info(item + ' inserted');
     }
   });
   self.setCurrentItem(user, 'none');
@@ -121,12 +124,12 @@ UserMap.prototype.removeItemFromDB = function(user, item, done) {
   var self = this;
   var queryString = 'DELETE FROM Inventory WHERE userid=' +'\'' + user +
     '\' AND ingredient=' + '\'' + item + '\'';
-  console.log('QueryString: ' + queryString);
+  logger.info('QueryString: ' + queryString);
   this.pool.query(queryString).then(function(error) {
     if (error) {
-      console.log(error);
+      logger.info(error);
     } else {
-      console.log(item + ' deleted');
+      logger.info(item + ' deleted');
     }
     done();
   });
@@ -136,14 +139,14 @@ UserMap.prototype.removeItemFromDB = function(user, item, done) {
 UserMap.prototype.getInventory = function(user, done) {
   var self = this;
   var queryString = 'SELECT ingredient FROM Inventory WHERE userid=' +'\'' + user +'\'';
-  console.log('QueryString: ' + queryString);
+  logger.info('QueryString: ' + queryString);
   this.pool.query(queryString).then(function(rows) {
-    console.log('result:length:' + rows.length);
-    var list = 'Inventory:'
+    logger.info('result:length:' + rows.length);
+    var list = '';
     for (var i in rows) {
       list = list.concat('\n' + rows[i].ingredient);
     }
-    console.log('List is: ' + list);
+    logger.info('Inventory: ' + list);
     done(list);
   });
 }
@@ -155,7 +158,7 @@ UserMap.prototype.getMealsForUser = function(user, done) {
   // Order the ingredients randomly so we can call 'meals' multiple times and get
   // different results.  We can only pass 3 ingredients.
   var queryString = 'SELECT ingredient FROM Inventory WHERE userid=' +'\'' + user +'\' ORDER BY RAND() LIMIT 3';
-  console.log('QueryString: ' + queryString);
+  logger.info('QueryString: ' + queryString);
   this.pool.query(queryString).then(function(rows) {
     if (rows.length == 0) {
       done('You have no inventory.  Try adding some items to your inventory');
@@ -164,7 +167,7 @@ UserMap.prototype.getMealsForUser = function(user, done) {
       var i = 0;
       while (i < 3 && i < rows.length) {
         params = params.concat(rows[i].ingredient);
-        console.log(rows[i].ingredient);
+        logger.info(rows[i].ingredient);
         i++;
         if (i < 3 && i < rows.length) {
           params = params.concat(',');
@@ -172,7 +175,7 @@ UserMap.prototype.getMealsForUser = function(user, done) {
       }
       params = params.concat('&api_key=' + self.bigOvenApiKey);
 
-      console.log('Params are: ' + params);
+      logger.info('Params are: ' + params);
 
       var options = {
         host: 'api2.bigoven.com',
@@ -181,11 +184,11 @@ UserMap.prototype.getMealsForUser = function(user, done) {
         method: 'GET'
       };
 
-      console.log('Path: ' + options.path);
+      logger.info('Path: ' + options.path);
 
       https.get(options, function(res) {
         var data = '';
-        console.log('STATUS: ' + res.statusCode);
+        logger.info('STATUS: ' + res.statusCode);
         res.setEncoding('utf8');
         res.on('data', function (chunk) {
           data += chunk;
@@ -201,7 +204,7 @@ UserMap.prototype.getMealsForUser = function(user, done) {
             for (var i = 0; i < obj.Results.length; i++) {
               recipes.push(obj.Results[i].RecipeID);
               recipeList = recipeList.concat(i + '. ' + obj.Results[i].Title + '\n');
-              console.log(obj.Results[i].Title);
+              logger.info(obj.Results[i].Title);
             }
             self.recipeMap.set(user, recipes);
             done('Recipes:\n' + recipeList);
@@ -221,8 +224,8 @@ UserMap.prototype.getRecipe = function(user, recipeIndex, done) {
       done('Recipe Index not found');
     } else {
       var recipeId = userRecipeArray[recipeIndex];
-      console.log('RecipeIndex: ' + recipeIndex);
-      console.log('RecipeID: ' + recipeId);
+      logger.info('RecipeIndex: ' + recipeIndex);
+      logger.info('RecipeID: ' + recipeId);
       var options = {
         host: 'api2.bigoven.com',
         path: '/recipe/' + recipeId + '?api_key=' + self.bigOvenApiKey,
@@ -230,11 +233,11 @@ UserMap.prototype.getRecipe = function(user, recipeIndex, done) {
         method: 'GET'
       };
 
-      console.log('Path: ' + options.path);
+      logger.info('Path: ' + options.path);
 
       https.get(options, function(res) {
         var data = '';
-        console.log('STATUS: ' + res.statusCode);
+        logger.info('STATUS: ' + res.statusCode);
         res.setEncoding('utf8');
         res.on('data', function (chunk) {
           data += chunk;
@@ -244,7 +247,7 @@ UserMap.prototype.getRecipe = function(user, recipeIndex, done) {
           var obj = JSON.parse(data);
           var recipeReturned = obj.Title + '\nIngredients:\n';
           for (var i = 0; i < obj.Ingredients.length; i++) {
-            console.log('Ingredient:' + obj.Ingredients[i].Name);
+            logger.info('Ingredient:' + obj.Ingredients[i].Name);
             recipeReturned = recipeReturned.concat(obj.Ingredients[i].Name + '\n');
           }
           recipeReturned = recipeReturned.concat('Directions: ' + obj.WebURL);
