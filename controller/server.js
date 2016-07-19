@@ -233,11 +233,13 @@ app.use(bodyParser.json());
  */
 app.post('/item',  function(req, res) {
   logger.info('got an item post');
-  var userid = req.body.userid;
+  var deviceid = req.body.deviceid;
   var item = req.body.item;
   var type = req.body.rec_type || 'visual';
-  logger.info('userid: ' + userid + '. item: ' + item);
-  if (users.isUser(userid)) { //TODO:  Check for undefined
+  logger.info('deviceid: ' + deviceid + '. item: ' + item);
+  if (users.isDevice(deviceid)) { //TODO:  Check for undefined
+    var userid = users.getUserid(deviceid);
+    logger.info('user for device id ' + deviceid + ': ' + userid);
     users.setStateByUser(userid, 0);
     bot.send(Bot.Message.text('Hey, is this a(n): ' + item + '?  Type (y)es or (n)o'), userid);
     //Save the current item with the user so we can come back to it later once it's confirmed.

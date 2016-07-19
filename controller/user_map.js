@@ -8,6 +8,7 @@ var logger = new Logger().getLogger();
 function UserMap() {
   var self = this;
   this.map = new Map();
+  this.deviceMap = new Map();
   this.recipeMap = new Map();
   // Use nconf to get the configuration for different APIs we are using.
   nconf.argv()
@@ -26,15 +27,16 @@ function UserMap() {
   });
 
   var connection = this.pool.getConnection();
-  this.pool.query('SELECT userid FROM Profile').then(function(rows) {
+  this.pool.query('SELECT userid, deviceid FROM Profile').then(function(rows) {
     logger.info('result:length:' + rows.length);
     for (var i in rows) {
-      logger.info('result:' + rows[i].userid);
+      logger.info('result:' + rows[i].userid + ', ' + rows[i].deviceid);
       var json = {
         state: 0,
         currentItem: 'none'
       };
       self.map.set(rows[i].userid, json);
+      self.deviceMap.set(rows[i].deviceid, rows[i].userid);
     }
     logger.info('map size: ' + self.map.size);
   });
@@ -65,6 +67,22 @@ UserMap.prototype.isUser = function(user) {
     return true;
   }
   return false;
+}
+
+UserMap.prototype.isDevice = function(device) {
+  if (this.deviceMap.has(parseInt(device))) {
+    return true;
+  }
+  logger.info('device not found: ' + device);
+  return false;
+}
+
+UserMap.prototype.getUserid = function(device) {
+  var deviceid = parseInt(device);
+  if (this.deviceMap.has(deviceid)) {
+    return this.deviceMap.get(deviceid);
+  }
+  return 'nosuchuser';
 }
 
 UserMap.prototype.setCurrentItem = function(user, item) {
