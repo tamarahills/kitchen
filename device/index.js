@@ -93,7 +93,7 @@ function processPicture() {
   });
 
   var params = {
-    images_file: fs.createReadStream('./fruitbowl.jpg'),
+    images_file: fs.createReadStream('./test_picture.jpg'),
     classifier_ids: ['greenpepper_194357852', 'orange_2010321797', 'banana_760231312', 'default']
   };
 
