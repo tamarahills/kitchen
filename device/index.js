@@ -87,7 +87,7 @@ function processPicture() {
   var item_array = [];
 
   var visual_recognition = watson.visual_recognition({
-    api_key: '30a8e58eb3163f8319ebea84ecd1b1b0027b6038',
+    api_key: nconf.get('api_key'),
     version: 'v3',
     version_date: '2016-05-19'
   });
@@ -102,7 +102,6 @@ function processPicture() {
       console.log(err);
     else {
       console.log(JSON.stringify(res, null, 2));
-      console.log('\n\n');
       // There should only be one imaged processed at a time.
       if (res.images_processed == 1) {
         var classifiers = res.images[0].classifiers;
@@ -152,7 +151,7 @@ function processPicture() {
     });
     // post the data
     var post_data = {
-      userid: nconf.get('user_key'),
+      deviceid: nconf.get('user_key'),
       item: itemString
     };
     post_req.write(JSON.stringify(post_data));
