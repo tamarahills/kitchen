@@ -5,6 +5,13 @@ var http = require('http');
 var watson = require('watson-developer-cloud');
 var fs = require('fs');
 var nconf = require('nconf');
+var sl = require('simple-node-logger');
+
+var opts = {
+    logFilePath:__dirname + '/log.log',
+    timestampFormat:'YYYY-MM-DD HH:mm:ss.SSS'
+};
+var logger = sl.createSimpleLogger(opts);
 
 var BUTTON_DOUBLE_CLICK_TIMEOUT = 300
 
@@ -36,11 +43,11 @@ board.on("ready", function() {
  	var processTimeout = null;
 
  	button.on('down', function() {
-		console.log('button triggered (down)');
+		logger.info('button triggered (down)');
 		downTimes++;
 		if (!processTimeout) {
 			processTimeout = setTimeout(() => {
-				console.log('processing num times:', downTimes);
+				logger.info('processing num times:', downTimes);
 				if (downTimes === 1) {
 					// Watson
 					led.blink();
@@ -50,7 +57,7 @@ board.on("ready", function() {
 				}
 
 				takePicture(function() {
-					console.log('camera done taking picture.');
+					logger.info('camera done taking picture.');
 					led.stop();
 					led.off();
 
@@ -99,9 +106,9 @@ function processPicture() {
 
   visual_recognition.classify(params, function(err, res) {
     if (err)
-      console.log(err);
+      logger.error(err);
     else {
-      console.log(JSON.stringify(res, null, 2));
+      logger.info(JSON.stringify(res, null, 2));
       // There should only be one imaged processed at a time.
       if (res.images_processed == 1) {
         var classifiers = res.images[0].classifiers;
@@ -109,9 +116,9 @@ function processPicture() {
           var classifier = classifiers[i];
           // If it's the default watson classifier, then we can just use the "class" attribute.
           if (classifier.classifier_id.localeCompare('default') == 0) {
-            console.log('classes length:' + classifier.classes.length);
+            logger.info('classes length:' + classifier.classes.length);
             for (var j = 0; j < classifier.classes.length; j++) {
-              console.log(classifier.classes[j].class);
+              logger.info(classifier.classes[j].class);
               item_array.push(classifier.classes[j].class)
             }
           } else {
@@ -121,12 +128,12 @@ function processPicture() {
           }
         }
       } else {
-        console.log('Error processing the image file:');
+        logger.info('Error processing the image file:');
       }
     }
     // Post the Results to the server.
     item_array.forEach(function (item, index, array) {
-      console.log(item);
+      logger.info(item);
     });
     if (item_array.length > 0) {
       postToServer(item_array[0]);
@@ -147,7 +154,7 @@ function processPicture() {
     };
 
     var post_req = http.request(post_options, function(res) {
-      console.log('completed the post: ' + res.statusCode);
+      logger.info('completed the post: ' + res.statusCode);
     });
     // post the data
     var post_data = {
