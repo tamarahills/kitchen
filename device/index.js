@@ -6,6 +6,7 @@ var watson = require('watson-developer-cloud');
 var fs = require('fs');
 var nconf = require('nconf');
 var sl = require('simple-node-logger');
+var jsonfile = require('jsonfile')
 
 var opts = {
     logFilePath:__dirname + '/log.log',
@@ -101,45 +102,53 @@ function processPicture() {
 
   var params = {
     images_file: fs.createReadStream('./test_picture.jpg'),
-    classifier_ids: ['greenpepper_194357852', 'orange_2010321797', 'banana_760231312', 'default']
+    classifier_ids: []
   };
 
-  visual_recognition.classify(params, function(err, res) {
-    if (err)
-      logger.error(err);
-    else {
-      logger.info(JSON.stringify(res, null, 2));
-      // There should only be one imaged processed at a time.
-      if (res.images_processed == 1) {
-        var classifiers = res.images[0].classifiers;
-        for (var i = 0; i < classifiers.length; i++) {
-          var classifier = classifiers[i];
-          // If it's the default watson classifier, then we can just use the "class" attribute.
-          if (classifier.classifier_id.localeCompare('default') == 0) {
-            logger.info('classes length:' + classifier.classes.length);
-            for (var j = 0; j < classifier.classes.length; j++) {
-              logger.info(classifier.classes[j].class);
-              item_array.push(classifier.classes[j].class)
+  // Read the classifiers from the json file.
+  var file = './classifiers.json'
+  jsonfile.readFile(file, function(err, obj) {
+    for(var i in obj.classifiers)
+      params.classifier_ids.push(obj.classifiers[i]);
+    logger.info('Before classify:' + params.classifier_ids.toString());
+
+    visual_recognition.classify(params, function(err, res) {
+      if (err)
+        logger.error(err);
+      else {
+        logger.info(JSON.stringify(res, null, 2));
+        // There should only be one imaged processed at a time.
+        if (res.images_processed == 1) {
+          var classifiers = res.images[0].classifiers;
+          for (var i = 0; i < classifiers.length; i++) {
+            var classifier = classifiers[i];
+            // If it's the default watson classifier, then we can just use the "class" attribute.
+            if (classifier.classifier_id.localeCompare('default') == 0) {
+              logger.info('classes length:' + classifier.classes.length);
+              for (var j = 0; j < classifier.classes.length; j++) {
+                logger.info(classifier.classes[j].class);
+                item_array.push(classifier.classes[j].class)
+              }
+            } else {
+              // If the classifier is one of our custom ones, then we can just use the
+              // "name" attribute
+              item_array.push(classifier.name);
             }
-          } else {
-            // If the classifier is one of our custom ones, then we can just use the
-            // "name" attribute
-            item_array.push(classifier.name);
           }
+        } else {
+          logger.info('Error processing the image file:');
         }
-      } else {
-        logger.info('Error processing the image file:');
       }
-    }
-    // Post the Results to the server.
-    item_array.forEach(function (item, index, array) {
-      logger.info(item);
+      // Post the Results to the server.
+      item_array.forEach(function (item, index, array) {
+        logger.info(item);
+      });
+      if (item_array.length > 0) {
+        postToServer(item_array[0]);
+      } else {
+        postToServer('NoResults');
+      }
     });
-    if (item_array.length > 0) {
-      postToServer(item_array[0]);
-    } else {
-      postToServer('NoResults');
-    }
   });
 
   function postToServer(itemString) {

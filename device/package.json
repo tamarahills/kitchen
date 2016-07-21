@@ -10,6 +10,7 @@
     "raspi-io": "^6.1.0",
     "watson-developer-cloud": "1.12.2",
     "nconf" : "0.8.4",
-    "simple-node-logger": "^0.93.12"
+    "simple-node-logger": "^0.93.12",
+    "jsonfile": "2.3.1"
   }
 }
