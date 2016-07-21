@@ -241,9 +241,15 @@ app.post('/item',  function(req, res) {
     var userid = users.getUserid(deviceid);
     logger.info('user for device id ' + deviceid + ': ' + userid);
     users.setStateByUser(userid, 0);
-    bot.send(Bot.Message.text('Hey, is this a(n): ' + item + '?  Type (y)es or (n)o'), userid);
-    //Save the current item with the user so we can come back to it later once it's confirmed.
-    users.setCurrentItem(userid, item);
+    if (item.localeCompare('NoResults') == 0) {
+      bot.send(Bot.Message.text('Sorry, nothing was recognized.  Try again and ' +
+                                'adjust the lighting, hold the camera still, and aim it ' +
+                                'directly at the object with no background objects.'), userid);
+    } else {
+      bot.send(Bot.Message.text('Hey, is this a(n): ' + item + '?  Type (y)es or (n)o'), userid);
+      //Save the current item with the user so we can come back to it later once it's confirmed.
+      users.setCurrentItem(userid, item);
+    }
     res.status(200).send('OK');
   } else {
     logger.info('User not found.');
