@@ -114,7 +114,7 @@ bot.onTextMessage((message, next) => {
 // Bot Handler for meals
 bot.onTextMessage((message, next) => {
   if (message.body.toLowerCase().localeCompare('meals') == 0) {
-    metrics.recordEvent('meals', 'request', 'success', 1);
+    metrics.recordEvent('meals', 'request', 'success', 1, message.from);
     users.getMealsForUser(message.from, function(meals) {
       message.reply('Meals are: ' + meals);
     });
@@ -127,7 +127,7 @@ bot.onTextMessage((message, next) => {
   if (message.body.toLowerCase().localeCompare('y') == 0) {
     message.reply('Awesome! We are adding this to your inventory!');
     users.addCurrentItemToDB(message.from);
-    metrics.recordEvent("inventory", "visual identify", "success", 1);
+    metrics.recordEvent("inventory", "visual identify", "success", 1, message.from);
   } else {
     next();
   }
@@ -137,7 +137,7 @@ bot.onTextMessage((message, next) => {
   if (message.body.toLowerCase().localeCompare('n') == 0) {
     users.setStateByUser(message.from, 0);
     message.reply('Sorry about that!  You can enter the item manually by typing add <item> (e.g. \'add potato\')');
-    metrics.recordEvent("inventory", "visual identify", "fail", 1);
+    metrics.recordEvent("inventory", "visual identify", "fail", 1, message.from);
   } else {
     next();
   }
@@ -168,7 +168,7 @@ bot.onTextMessage((message, next) => {
   if (message.body.toLowerCase().localeCompare('get') == 0) {
     users.getInventory(message.from, function(list) {
       message.reply(list);
-      metrics.recordEvent("inventory", "get", "request", 1);
+      metrics.recordEvent("inventory", "get", "request", 1, message.from);
     });
   } else {
     next();
@@ -183,7 +183,7 @@ bot.onTextMessage((message, next) => {
   } else {
     users.getRecipe(message.from, parseInt(message.body), function(recipe) {
       message.reply(recipe);
-      metrics.recordEvent("recipe", "request", "success", 1);
+      metrics.recordEvent("recipe", "request", "success", 1, message.from);
     });
   }
 });

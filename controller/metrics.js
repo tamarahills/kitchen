@@ -60,7 +60,8 @@ Metrics.prototype = {
     recordEvent: function(event_category, // For example, 'eng', or 'user'
                           event_action,   // Action that triggered event (e.g., 'open-app')
                           event_label,    // Metric label (e.g., 'memory')
-                          event_value) {  // Value of metric (numeric)
+                          event_value,  // Value of metric (numeric)
+                          cid ) {      //client id
         var self = this;
         var event_string = formatEventString();
         this.log("METRICS - event string:" + event_string);
@@ -105,7 +106,7 @@ Metrics.prototype = {
             encodeURIComponent(self.app_platform);
             encodeURIComponent(self.arch);
 
-            var event_string = ('v=1&t=event&tid=' + self.analyticsProperty + '&cid=' + self.clientId +
+            var event_string = ('v=1&t=event&tid=' + self.analyticsProperty + '&cid=' + cid +
                                 '&ec=' + event_category +
                                 '&ea=' + event_action +
                                 '&el=' + event_label +
