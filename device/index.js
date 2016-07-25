@@ -154,7 +154,6 @@ function processPicture() {
   function postToServer(itemString) {
     var post_options = {
       host: nconf.get('host'),
-      port: '8080',
       path: '/item',
       method: 'POST',
       headers: {
