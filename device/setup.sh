@@ -25,6 +25,15 @@ echo "***************************"
 npm install
 
 echo "***************************"
+echo "installing cron jobs..."
+echo "***************************"
+echo "0 0 * * * /home/pi/workspace/kitchen/device/classifiers_update.sh >> /home/pi/workspace/kitchen/device/classifiers_update.log 2>&1" > newcrons
+echo "@reboot /home/pi/workspace/kitchen/device/run_node_script.sh" >> newcrons
+crontab -l > oldcrons
+crontab newcrons
+rm newcrons
+
+echo "***************************"
 echo "done"
 echo "***************************"
 
