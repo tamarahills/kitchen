@@ -6,4 +6,4 @@ cd /home/pi/workspace/kitchen/device
 git pull origin master
 echo "rebooting in 5 seconds..."
 sleep 5
-reboot
+sudo /sbin/reboot
