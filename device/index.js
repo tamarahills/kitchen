@@ -173,3 +173,8 @@ function processPicture() {
     post_req.end();
   }
 }
+
+// Log uncaught exceptions.
+process.on('uncaughtException', function(err) {
+  logger.info('uncaughtException: ', err);
+});
