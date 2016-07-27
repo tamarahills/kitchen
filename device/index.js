@@ -19,7 +19,7 @@ var BUTTON_DOUBLE_CLICK_TIMEOUT = 300
 // Use nconf to get the configuration for the device.
 nconf.argv()
    .env()
-   .file({ file: './config.json' });
+   .file({ file: __dirname + '/config.json' });
 
 var board = new five.Board({
   io: new Raspi(),
@@ -101,12 +101,12 @@ function processPicture() {
   });
 
   var params = {
-    images_file: fs.createReadStream('./test_picture.jpg'),
+    images_file: fs.createReadStream(__dirname + '/test_picture.jpg'),
     classifier_ids: []
   };
 
   // Read the classifiers from the json file.
-  var file = './classifiers.json'
+  var file = __dirname + '/classifiers.json';
   jsonfile.readFile(file, function(err, obj) {
     for(var i in obj.classifiers)
       params.classifier_ids.push(obj.classifiers[i]);
