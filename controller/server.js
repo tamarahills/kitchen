@@ -147,10 +147,12 @@ bot.onTextMessage((message, next) => {
   var arrayOfStrings = message.body.toLowerCase().split(' ');
   // TODO: This is really needs to allow for a string with spaces (e.g. 'green pepper')
   if (arrayOfStrings.length >= 2) {
-    logger.info(arrayOfStrings[0], arrayOfStrings[1]);
+    logger.info(arrayOfStrings.join(' '));
     if (arrayOfStrings[0].toLowerCase().localeCompare('add') == 0) {
-      users.addItemToDB(message.from, arrayOfStrings[1]);
-      message.reply('added ' + arrayOfStrings[1]);
+      var item = arrayOfStrings.slice(1).join(' ');
+      logger.info('item: ', item);
+      users.addItemToDB(message.from, item);
+      message.reply('added ' + item);
     } else if (arrayOfStrings[0].toLowerCase().localeCompare('rm') == 0) {
       users.removeItemFromDB(message.from, arrayOfStrings[1], function() {
         message.reply('removed ' + arrayOfStrings[1]);
