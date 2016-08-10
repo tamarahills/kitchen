@@ -32,7 +32,6 @@ var options = {
   app_name: 'smartkitchen',
   app_version: '1.0',
   app_update_channel: 'default',
-  app_build_id: '1.0',
   app_platform: 'AWS',
   arch: 'node',
   logger: metrics_logger
