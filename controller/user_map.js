@@ -184,7 +184,7 @@ UserMap.prototype.getMealsForUser = function(user, done) {
       var params = '&include_primarycat=maindish,sidedish,appetizers&include_ing=';
       var i = 0;
       while (i < 3 && i < rows.length) {
-        params = params.concat(rows[i].ingredient);
+        params = params.concat(encodeURIComponent(rows[i].ingredient));
         logger.info(rows[i].ingredient);
         i++;
         if (i < 3 && i < rows.length) {
