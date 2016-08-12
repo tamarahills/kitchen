@@ -6,7 +6,7 @@ var express = require('express');
 var port    =   process.env.PORT || 8080;
 var UserMap = require('./user_map');
 var Logger = require('./logger');
-var Metrics = require('./metrics');
+var Metrics = require('cd-metrics');
 var bodyParser = require('body-parser');
 let util = require('util');
 let http = require('http');
@@ -19,6 +19,8 @@ var logger = new Logger().getLogger();
 nconf.argv()
    .env()
    .file({ file: './config.json' });
+
+let kik = nconf.get('kik');
 
 var metrics_logger = function() {
   var args = Array.from(arguments);
@@ -58,7 +60,6 @@ var metrics = new Metrics('555666777888', options);
  * help - prints out the list of commands.
 */
 
-var kik = nconf.get('kik');
 // Configure the bot API endpoint, details for your bot
 let bot = new Bot({
   username: kik.username,
