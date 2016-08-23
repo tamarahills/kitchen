@@ -21,6 +21,12 @@ nconf.argv()
    .env()
    .file({ file: __dirname + '/config.json' });
 
+var cs_apikey = nconf.get('api_key2');
+var cloudsight = require ('cloudsight') ({
+  apikey: cs_apikey
+});
+
+
 var board = new five.Board({
   io: new Raspi(),
   repl: false
@@ -62,7 +68,13 @@ board.on("ready", function() {
 					led.stop();
 					led.off();
 
-          processPicture();
+                    processPicture1(function(item1) {
+                      logger.info('processPicture1 returned ' + item1);
+                      processPicture2(function(item2) {
+                        logger.info('processPicture2 returned ' + item2);
+                        postToServer(item1, item2);
+                      });
+                    });
 
 					clearTimeout(processTimeout);
 					processTimeout = null;
@@ -91,11 +103,38 @@ function takePicture (cb) {
 	webcam.capture(__dirname + '/test_picture', cb);
 }
 
-function processPicture() {
+
+function postToServer(item1String, item2String) {
+  logger.info('postToServer received ' + item1String + ', ' + item2String);
+  var itemString = 'result-1:' + item1String + 'result-2:' + item2String + 'end-results';
+  logger.info('postToServer sending: ' + itemString);
+  var post_options = {
+    host: nconf.get('host'),
+    port: '8080',
+    path: '/item',
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    }
+  };
+
+  var post_req = http.request(post_options, function(res) {
+    logger.info('completed the post: ' + res.statusCode);
+  });
+  // post the data
+  var post_data = {
+    deviceid: nconf.get('user_key'),
+    item: itemString
+  };
+  post_req.write(JSON.stringify(post_data));
+  post_req.end();
+}
+
+function processPicture1(callback) {
   var item_array = [];
 
   var visual_recognition = watson.visual_recognition({
-    api_key: nconf.get('api_key'),
+    api_key: nconf.get('api_key1'),
     version: 'v3',
     version_date: '2016-05-19'
   });
@@ -144,34 +183,45 @@ function processPicture() {
         logger.info(item);
       });
       if (item_array.length > 0) {
-        postToServer(item_array[0]);
+        callback(item_array[0]);
       } else {
-        postToServer('NoResults');
+        callback('NoResults');
       }
     });
   });
+}
 
-  function postToServer(itemString) {
-    var post_options = {
-      host: nconf.get('host'),
-      path: '/item',
-      method: 'POST',
-      headers: {
-          'Content-Type': 'application/json'
+function processPicture2(callback) {
+
+  var image = {
+    image: './test_picture.jpg',
+    locale: 'en-US'
+  };
+
+  cloudsight.request (image, true, function(err, item) {
+    if (err) {
+      logger.info('cloudsight image recognition error: ' + err);
+      callback('NoResults');
+    }
+    else {
+      if (item.status === 'completed') {
+        console.log('item: ' + item.name);
+        // "image dated 2016-08-19"
+        if (item.name.match(/\d\d\d\d-\d\d-\d\d/)) {
+          logger.info('processPicture2: Looks like the image couldn\'t be recognized');
+          callback('NoResults');
+        }
+        else {
+          var name = item.name;
+          logger.info('processPicture2 returning ' + name);
+          callback(name);
+        }
+      } else {
+        logger.info('processPicture2: The image couldn\'t be recognized');
+        callback('NoResults');
       }
-    };
-
-    var post_req = http.request(post_options, function(res) {
-      logger.info('completed the post: ' + res.statusCode);
-    });
-    // post the data
-    var post_data = {
-      deviceid: nconf.get('user_key'),
-      item: itemString
-    };
-    post_req.write(JSON.stringify(post_data));
-    post_req.end();
-  }
+    }
+  });
 }
 
 // Log uncaught exceptions.

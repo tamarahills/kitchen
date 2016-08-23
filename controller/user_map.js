@@ -33,7 +33,7 @@ function UserMap() {
       logger.info('result:' + rows[i].userid + ', ' + rows[i].deviceid);
       var json = {
         state: 0,
-        currentItem: 'none'
+        currentItem: ['none', 'none']
       };
       self.map.set(rows[i].userid, json);
       self.deviceMap.set(rows[i].deviceid, rows[i].userid);
@@ -85,31 +85,39 @@ UserMap.prototype.getUserid = function(device) {
   return 'nosuchuser';
 }
 
-UserMap.prototype.setCurrentItem = function(user, item) {
+UserMap.prototype.setCurrentItem = function(user, item1, item2) {
+  logger.info('setCurrentItem: item1 - ' + item1 + ', item2 - ' + item2);
   var self = this;
   if (self.map.has(user)) {
     logger.info('Found user: ' + user);
     var data = self.map.get(user);
-    data.currentItem = item;
+    // There has to be at least one item
+    data.currentItem[0] = item1;
+
+    if (item2) {
+      data.currentItem[1] = item2;
+    }
+      
     self.map.set(user, data);
-    logger.info('setCurrentItem:' + user +':' + item);
+    logger.info('setCurrentItem:' + user +':' + data.currentItem.toString());
   }
 }
 
-UserMap.prototype.getCurrentItem = function(user) {
+UserMap.prototype.getCurrentItem = function(user, itemNumber) {
   var self = this;
   if (self.map.has(user)) {
     var data = self.map.get(user);
-    logger.info('GetCurrentItem: ' + user + 'currentItem: ' + data.currentItem);
-    return data.currentItem;
+    var item = data.currentItem[itemNumber];
+    logger.info('GetCurrentItem: ' + user + 'currentItem: ' + item);
+    return item;
   } else {
     logger.info('user not found:' + user);
   }
 }
 
-UserMap.prototype.addCurrentItemToDB = function(user) {
+UserMap.prototype.addCurrentItemToDB = function(user, itemNumber) {
   var self = this;
-  var item = self.getCurrentItem(user);
+  var item = self.getCurrentItem(user, itemNumber);
   var queryString = 'INSERT INTO Inventory VALUES (' + '\'' + user +'\',\'' +
     item + '\')';
   logger.info('QueryString: ' + queryString);
@@ -120,7 +128,7 @@ UserMap.prototype.addCurrentItemToDB = function(user) {
       logger.info(item + ' inserted');
     }
   });
-  self.setCurrentItem(user, 'none');
+  self.setCurrentItem(user, 'none', 'none');
 }
 
 UserMap.prototype.addItemToDB = function(user, item) {
@@ -135,7 +143,7 @@ UserMap.prototype.addItemToDB = function(user, item) {
       logger.info(item + ' inserted');
     }
   });
-  self.setCurrentItem(user, 'none');
+  self.setCurrentItem(user, 'none', 'none');
 }
 
 UserMap.prototype.removeItemFromDB = function(user, item, done) {
@@ -151,7 +159,7 @@ UserMap.prototype.removeItemFromDB = function(user, item, done) {
     }
     done();
   });
-  self.setCurrentItem(user, 'none');
+  self.setCurrentItem(user, 'none', 'none');
 }
 
 UserMap.prototype.getInventory = function(user, done) {

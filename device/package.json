@@ -9,6 +9,7 @@
     "node-webcam": "^0.2.1",
     "raspi-io": "^6.1.0",
     "watson-developer-cloud": "1.12.2",
+    "cloudsight": "1.1.1",
     "nconf" : "0.8.4",
     "simple-node-logger": "^0.93.12",
     "jsonfile": "2.3.1"
