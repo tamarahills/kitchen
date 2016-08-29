@@ -7,6 +7,9 @@ var fs = require('fs');
 var nconf = require('nconf');
 var sl = require('simple-node-logger');
 var jsonfile = require('jsonfile')
+var AWS = require ('aws-sdk');
+var s3 = new AWS.S3();
+var uuid = require('node-uuid');
 
 var opts = {
     logFilePath:__dirname + '/log.log',
@@ -26,6 +29,8 @@ var cloudsight = require ('cloudsight') ({
   apikey: cs_apikey
 });
 
+var testPicturePrefix = 'test_picture';
+var testPictureFileName = __dirname + '/' + testPicturePrefix + '.jpg';
 
 var board = new five.Board({
   io: new Raspi(),
@@ -67,12 +72,13 @@ board.on("ready", function() {
 					logger.info('camera done taking picture.');
 					led.stop();
 					led.off();
-
-                    processPicture1(function(item1) {
-                      logger.info('processPicture1 returned ' + item1);
-                      processPicture2(function(item2) {
-                        logger.info('processPicture2 returned ' + item2);
-                        postToServer(item1, item2);
+                    savePicture(function() {
+                      processPicture1(function(item1) {
+                        logger.info('processPicture1 returned ' + item1);
+                        processPicture2(function(item2) {
+                          logger.info('processPicture2 returned ' + item2);
+                          postToServer(item1, item2, uploadImageAndResults);
+                        });
                       });
                     });
 
@@ -128,6 +134,40 @@ function postToServer(item1String, item2String) {
   };
   post_req.write(JSON.stringify(post_data));
   post_req.end();
+
+  uploadImageAndResults(item1String, item2String);
+}
+
+function uploadImageAndResults(result1, result2) {
+  var bucketName = 'pantry-storage';
+  var namePrefix = uuid.v4();
+  var imageKeyName = 'test-folder/image-' + namePrefix + '.jpg';
+  var metaKeyName  = 'test-folder/image-' + namePrefix + '.txt';
+  logger.info('image key name:' + imageKeyName);
+  fs.readFile(testPictureFileName, (err, data) => {
+    if (err) {
+      console.log('Error reading image file:', err);
+      cb();
+    } else {
+
+      s3.putObject({Bucket: bucketName, Key: imageKeyName, Body: data}, function(err, data) {
+        if (err) {
+         console.log(err);
+        }
+        else {
+          console.log("Successfully uploaded image to " + bucketName + "/" + imageKeyName);
+          var metaData = 'watson:\t\t' + result1 + '\ncloudsight:\t' + result2 + '\n';
+          s3.putObject({Bucket: bucketName, Key: metaKeyName, Body: metaData}, function(err, data) {
+            if (err) {
+              console.log(err);
+            } else {
+              console.log("Successfully uploaded metadata to " + bucketName + "/" + metaKeyName);
+            }
+          });
+        } 
+      });
+    }
+  });
 }
 
 function processPicture1(callback) {
@@ -205,7 +245,6 @@ function processPicture2(callback) {
     }
     else {
       if (item.status === 'completed') {
-        console.log('item: ' + item.name);
         // "image dated 2016-08-19"
         if (item.name.match(/\d\d\d\d-\d\d-\d\d/)) {
           logger.info('processPicture2: Looks like the image couldn\'t be recognized');
@@ -213,11 +252,9 @@ function processPicture2(callback) {
         }
         else {
           var name = item.name;
-          logger.info('processPicture2 returning ' + name);
           callback(name);
         }
       } else {
-        logger.info('processPicture2: The image couldn\'t be recognized');
         callback('NoResults');
       }
     }
