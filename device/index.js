@@ -77,7 +77,7 @@ board.on("ready", function() {
                         logger.info('processPicture1 returned ' + item1);
                         processPicture2(function(item2) {
                           logger.info('processPicture2 returned ' + item2);
-                          postToServer(item1, item2, uploadImageAndResults);
+                          postToServer(item1, item2);
                         });
                       });
                     });
@@ -111,39 +111,38 @@ function takePicture (cb) {
 
 
 function postToServer(item1String, item2String) {
-  logger.info('postToServer received ' + item1String + ', ' + item2String);
-  var itemString = 'result-1:' + item1String + 'result-2:' + item2String + 'end-results';
-  logger.info('postToServer sending: ' + itemString);
-  var post_options = {
-    host: nconf.get('host'),
-    port: '8080',
-    path: '/item',
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json'
-    }
-  };
 
-  var post_req = http.request(post_options, function(res) {
-    logger.info('completed the post: ' + res.statusCode);
+  uploadImage(function(key) {
+    var itemString = 'result-1:' + item1String + 'result-2:' + item2String + 'end-results';
+    var post_options = {
+      host: nconf.get('host'),
+      port: '8080',
+      path: '/item',
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json'
+      }
+    };
+
+    var post_req = http.request(post_options, function(res) {
+      logger.info('completed the post: ' + res.statusCode);
+    });
+    // post the data
+    var post_data = {
+      deviceid: nconf.get('user_key'),
+      item: itemString,
+      uuid: key
+    };
+    post_req.write(JSON.stringify(post_data));
+    post_req.end();
   });
-  // post the data
-  var post_data = {
-    deviceid: nconf.get('user_key'),
-    item: itemString
-  };
-  post_req.write(JSON.stringify(post_data));
-  post_req.end();
-
-  uploadImageAndResults(item1String, item2String);
 }
 
-function uploadImageAndResults(result1, result2) {
+function uploadImage(cb) {
   var bucketName = 'pantry-storage';
   var namePrefix = uuid.v4();
   var imageKeyName = 'test-folder/image-' + namePrefix + '.jpg';
   var metaKeyName  = 'test-folder/image-' + namePrefix + '.txt';
-  logger.info('image key name:' + imageKeyName);
   fs.readFile(testPictureFileName, (err, data) => {
     if (err) {
       console.log('Error reading image file:', err);
@@ -156,14 +155,7 @@ function uploadImageAndResults(result1, result2) {
         }
         else {
           console.log("Successfully uploaded image to " + bucketName + "/" + imageKeyName);
-          var metaData = 'watson:\t\t' + result1 + '\ncloudsight:\t' + result2 + '\n';
-          s3.putObject({Bucket: bucketName, Key: metaKeyName, Body: metaData}, function(err, data) {
-            if (err) {
-              console.log(err);
-            } else {
-              console.log("Successfully uploaded metadata to " + bucketName + "/" + metaKeyName);
-            }
-          });
+          cb(metaKeyName);
         } 
       });
     }
@@ -180,7 +172,7 @@ function processPicture1(callback) {
   });
 
   var params = {
-    images_file: fs.createReadStream(__dirname + '/test_picture.jpg'),
+    images_file: fs.createReadStream(testPictureFileName),
     classifier_ids: []
   };
 
@@ -234,7 +226,7 @@ function processPicture1(callback) {
 function processPicture2(callback) {
 
   var image = {
-    image: './test_picture.jpg',
+    image: testPictureFileName,
     locale: 'en-US'
   };
 

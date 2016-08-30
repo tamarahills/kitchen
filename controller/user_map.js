@@ -86,20 +86,17 @@ UserMap.prototype.getUserid = function(device) {
 }
 
 UserMap.prototype.setCurrentItem = function(user, item1, item2) {
-  logger.info('setCurrentItem: item1 - ' + item1 + ', item2 - ' + item2);
+  var item1 = item1 || 'null';
+  var item2 = item2 || 'null';
   var self = this;
   if (self.map.has(user)) {
     logger.info('Found user: ' + user);
     var data = self.map.get(user);
-    // There has to be at least one item
-    data.currentItem[0] = item1;
 
-    if (item2) {
-      data.currentItem[1] = item2;
-    }
+    data.currentItem[0] = item1;
+    data.currentItem[1] = item2;
       
     self.map.set(user, data);
-    logger.info('setCurrentItem:' + user +':' + data.currentItem.toString());
   }
 }
 
@@ -108,8 +105,17 @@ UserMap.prototype.getCurrentItem = function(user, itemNumber) {
   if (self.map.has(user)) {
     var data = self.map.get(user);
     var item = data.currentItem[itemNumber];
-    logger.info('GetCurrentItem: ' + user + 'currentItem: ' + item);
     return item;
+  } else {
+    logger.info('user not found:' + user);
+  }
+}
+
+UserMap.prototype.getCurrentItems = function(user) {
+  var self = this;
+  if (self.map.has(user)) {
+    var data = self.map.get(user);
+    return data.currentItem;
   } else {
     logger.info('user not found:' + user);
   }

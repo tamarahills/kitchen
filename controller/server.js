@@ -15,6 +15,9 @@ let Bot = require('@kikinteractive/kik');
 var app = express();
 var users = new UserMap();
 var logger = new Logger().getLogger();
+var AWS = require ('aws-sdk');
+var s3 = new AWS.S3();
+
 // Use nconf to get the configuration for different APIs we are using.
 nconf.argv()
    .env()
@@ -54,6 +57,7 @@ var metrics = new Metrics('555666777888', options);
 var ITEM_1 = 0;
 var ITEM_2 = 1;
 var currentItem;
+var uuid;
 
 /* The simple smartkitchen kikbot grammar is as follows:
  * add <item> - adds item to the inventory
@@ -129,6 +133,10 @@ bot.onTextMessage((message, next) => {
 });
 
 bot.onTextMessage((message, next) => {
+  var currentItems = users.getCurrentItems(message.from);
+  var currentItem1 = currentItems[0];
+  var currentItem2 = currentItems[1];
+
   if (message.body.toLowerCase().localeCompare('1') == 0) {
     message.reply('Awesome! We are adding this to your inventory!');
 
@@ -139,6 +147,7 @@ bot.onTextMessage((message, next) => {
     users.addCurrentItemToDB(message.from, ITEM_1);
     metrics.recordEvent("inventory", "visual identify 1", "success", 1, message.from);
     metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
+    uploadMetadata(currentItem1, 'right', currentItem2, 'wrong');
   } else if (message.body.toLowerCase().localeCompare('2') == 0) {
     message.reply('Awesome! We are adding this to your inventory!');
 
@@ -149,6 +158,7 @@ bot.onTextMessage((message, next) => {
     users.addCurrentItemToDB(message.from, ITEM_2);
     metrics.recordEvent("inventory", "visual identify 2", "success", 1, message.from);
     metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
+    uploadMetadata(currentItem1, 'wrong', currentItem2, 'right');
   } else if (message.body.toLowerCase().localeCompare('y') == 0) {
     message.reply('Awesome! We are adding this to your inventory!');
 
@@ -163,10 +173,12 @@ bot.onTextMessage((message, next) => {
       case ITEM_1:
         metrics.recordEvent("inventory", "visual identify 1", "success", 1, message.from);
         metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
+        uploadMetadata(currentItem1, 'right', currentItem2, 'wrong');
         break;
       case ITEM_2:
-        metrics.recordEvent("inventory", "visual identify 2", "success", 1, message.from);
         metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
+        metrics.recordEvent("inventory", "visual identify 2", "success", 1, message.from);
+        uploadMetadata(currentItem1, 'wrong', currentItem2, 'right');
         break;
     }
   } else {
@@ -184,6 +196,8 @@ bot.onTextMessage((message, next) => {
     // not recognize the item.
     metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
     metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
+    var currentItems = users.getCurrentItems(message.from);
+    uploadMetadata(currentItems[0], 'wrong', currentItems[1], 'wrong');
   } else {
     next();
   }
@@ -283,8 +297,12 @@ app.post('/item',  function(req, res) {
   logger.info('got an item post');
   var deviceid = req.body.deviceid;
   var itemString = req.body.item;
+  uuid = req.body.uuid;
+
   var type = req.body.rec_type || 'visual';
-  logger.info('deviceid: ' + deviceid + '. item: ' + itemString);
+  logger.info('deviceid: ' + deviceid);
+  logger.info('nitem: ' + itemString);
+  logger.info('uuid: ' + uuid);
   if (users.isDevice(deviceid)) { //TODO:  Check for undefined
     var userid = users.getUserid(deviceid);
     logger.info('user for device id ' + deviceid + ': ' + userid);
@@ -295,13 +313,13 @@ app.post('/item',  function(req, res) {
     var result1 = results[1];
     var result2 = results[2];
     logger.info('result 1: ' + result1 + ', result 2: ' + result2);
-    //if (result1.localeCompare('NoResults') == 0 && result2.localeCompare('NoResults') == 0) {
     if (result1 === 'NoResults' && result2 === 'NoResults') {
       bot.send(Bot.Message.text('Sorry, nothing was recognized.  Try again and ' +
                                 'adjust the lighting, hold the camera still, and aim it ' +
                                 'directly at the object with no background objects.'), userid);
-      metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
-      metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
+      metrics.recordEvent("inventory", "visual identify 1", "fail", 1, userid);
+      metrics.recordEvent("inventory", "visual identify 2", "fail", 1, userid);
+      uploadMetadata(result1, 'wrong', result2, 'wrong');
     } else if ((result1 === 'NoResults' && result2 !== 'NoResults') || 
                (result1 !== 'NoResults' && result2 === 'NoResults')) {
       logger.info('One recognition service recognized the item and the other did not recognize the item');
@@ -344,3 +362,19 @@ app.get('/about', function(req, res) {
 app.listen(process.env.PORT || 8080, function() {
 	logger.info('Server started on port ' + (process.env.PORT || 8080));
 });
+
+function uploadMetadata(item1, result1, item2, result2) {
+    var item1 = (item1) || 'NoResult';
+    var item2 = (item2) || 'NoResult';
+
+    var metaData = 'watson:\t\t' + item1 + ' (' + result1 + ')\ncloudsight:\t' + item2 + ' (' + result2 + ')\n';
+    var bucketName = 'pantry-storage';
+    s3.putObject({Bucket: bucketName, Key: uuid, Body: metaData}, function(err, data) {
+      if (err) {
+        console.log(err);
+      } else {
+        logger.info("Successfully uploaded metadata to " + bucketName + "/" + uuid);
+      }
+    });
+}
+
