@@ -183,8 +183,9 @@ UserMap.prototype.getInventory = function(user, done) {
   });
 }
 
-UserMap.prototype.getMealsForUser = function(user, done) {
+UserMap.prototype.getMealsForUser = function(message, done) {
   var self = this;
+  var user = message.from;
   // Clear out any previous meals search:
   self.recipeMap.delete(user);
   // Order the ingredients randomly so we can call 'meals' multiple times and get
@@ -197,9 +198,11 @@ UserMap.prototype.getMealsForUser = function(user, done) {
     } else {
       var params = '&include_primarycat=maindish,sidedish,appetizers&include_ing=';
       var i = 0;
+      var recipeIngredients = [];
       while (i < 3 && i < rows.length) {
         params = params.concat(encodeURIComponent(rows[i].ingredient));
         logger.info(rows[i].ingredient);
+        recipeIngredients[i] = rows[i].ingredient;
         i++;
         if (i < 3 && i < rows.length) {
           params = params.concat(',');
@@ -208,6 +211,7 @@ UserMap.prototype.getMealsForUser = function(user, done) {
       params = params.concat('&api_key=' + self.bigOvenApiKey);
 
       logger.info('Params are: ' + params);
+      message.reply('Looking for recipes using these ingredients: ' + recipeIngredients.join('\n'));
 
       var options = {
         host: 'api2.bigoven.com',

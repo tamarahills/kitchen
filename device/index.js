@@ -8,7 +8,6 @@ var nconf = require('nconf');
 var sl = require('simple-node-logger');
 var jsonfile = require('jsonfile')
 var AWS = require ('aws-sdk');
-var s3 = new AWS.S3();
 var uuid = require('node-uuid');
 
 var opts = {
@@ -25,6 +24,7 @@ nconf.argv()
    .file({ file: __dirname + '/config.json' });
 
 var cs_apikey = nconf.get('api_key2');
+
 var cloudsight = require ('cloudsight') ({
   apikey: cs_apikey
 });
@@ -36,6 +36,10 @@ var board = new five.Board({
   io: new Raspi(),
   repl: false
 });
+
+AWS.config.loadFromPath('./credentials.json');
+
+var s3 = new AWS.S3();
 
 board.on("ready", function() {
 	var button = new five.Button({
@@ -72,20 +76,19 @@ board.on("ready", function() {
 					logger.info('camera done taking picture.');
 					led.stop();
 					led.off();
-                    savePicture(function() {
-                      processPicture1(function(item1) {
-                        logger.info('processPicture1 returned ' + item1);
-                        processPicture2(function(item2) {
-                          logger.info('processPicture2 returned ' + item2);
-                          postToServer(item1, item2);
-                        });
-                      });
-                    });
 
-					clearTimeout(processTimeout);
-					processTimeout = null;
+			            processPicture1(function(item1) {
+                                        logger.info('processPicture1 returned ' + item1);
+                                        processPicture2(function(item2) {
+                                           logger.info('processPicture2 returned ' + item2);
+                                           postToServer(item1, item2);
+                                        });
+                                    });
 
-					downTimes = 0;
+				    clearTimeout(processTimeout);
+				    processTimeout = null;
+
+				    downTimes = 0;
 				});
 			}, BUTTON_DOUBLE_CLICK_TIMEOUT)
 		}
@@ -158,13 +161,14 @@ function uploadImage(cb) {
           cb(metaKeyName);
         } 
       });
+
     }
   });
 }
 
 function processPicture1(callback) {
   var item_array = [];
-
+       
   var visual_recognition = watson.visual_recognition({
     api_key: nconf.get('api_key1'),
     version: 'v3',

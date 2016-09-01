@@ -16,6 +16,9 @@ var app = express();
 var users = new UserMap();
 var logger = new Logger().getLogger();
 var AWS = require ('aws-sdk');
+
+AWS.config.loadFromPath('./credentials.json');
+
 var s3 = new AWS.S3();
 
 // Use nconf to get the configuration for different APIs we are using.
@@ -124,7 +127,7 @@ bot.onTextMessage((message, next) => {
 bot.onTextMessage((message, next) => {
   if (message.body.toLowerCase().localeCompare('meals') == 0) {
     metrics.recordEvent('meals', 'request', 'success', 1, message.from);
-    users.getMealsForUser(message.from, function(meals) {
+    users.getMealsForUser(message, function(meals) {
       message.reply('Meals are: ' + meals);
     });
   } else {
@@ -147,7 +150,7 @@ bot.onTextMessage((message, next) => {
     users.addCurrentItemToDB(message.from, ITEM_1);
     metrics.recordEvent("inventory", "visual identify 1", "success", 1, message.from);
     metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
-    uploadMetadata(currentItem1, 'right', currentItem2, 'wrong');
+    uploadMetadata(currentItem1, 'success', currentItem2, 'failure');
   } else if (message.body.toLowerCase().localeCompare('2') == 0) {
     message.reply('Awesome! We are adding this to your inventory!');
 
@@ -158,7 +161,7 @@ bot.onTextMessage((message, next) => {
     users.addCurrentItemToDB(message.from, ITEM_2);
     metrics.recordEvent("inventory", "visual identify 2", "success", 1, message.from);
     metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
-    uploadMetadata(currentItem1, 'wrong', currentItem2, 'right');
+    uploadMetadata(currentItem1, 'failure', currentItem2, 'success');
   } else if (message.body.toLowerCase().localeCompare('y') == 0) {
     message.reply('Awesome! We are adding this to your inventory!');
 
@@ -173,12 +176,12 @@ bot.onTextMessage((message, next) => {
       case ITEM_1:
         metrics.recordEvent("inventory", "visual identify 1", "success", 1, message.from);
         metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
-        uploadMetadata(currentItem1, 'right', currentItem2, 'wrong');
+        uploadMetadata(currentItem1, 'success', currentItem2, 'failure');
         break;
       case ITEM_2:
         metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
         metrics.recordEvent("inventory", "visual identify 2", "success", 1, message.from);
-        uploadMetadata(currentItem1, 'wrong', currentItem2, 'right');
+        uploadMetadata(currentItem1, 'failure', currentItem2, 'success');
         break;
     }
   } else {
@@ -197,7 +200,7 @@ bot.onTextMessage((message, next) => {
     metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
     metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
     var currentItems = users.getCurrentItems(message.from);
-    uploadMetadata(currentItems[0], 'wrong', currentItems[1], 'wrong');
+    uploadMetadata(currentItems[0], 'failure', currentItems[1], 'failure');
   } else {
     next();
   }
@@ -319,7 +322,7 @@ app.post('/item',  function(req, res) {
                                 'directly at the object with no background objects.'), userid);
       metrics.recordEvent("inventory", "visual identify 1", "fail", 1, userid);
       metrics.recordEvent("inventory", "visual identify 2", "fail", 1, userid);
-      uploadMetadata(result1, 'wrong', result2, 'wrong');
+      uploadMetadata(result1, 'failure', result2, 'failure');
     } else if ((result1 === 'NoResults' && result2 !== 'NoResults') || 
                (result1 !== 'NoResults' && result2 === 'NoResults')) {
       logger.info('One recognition service recognized the item and the other did not recognize the item');
