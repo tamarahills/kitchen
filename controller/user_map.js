@@ -33,7 +33,7 @@ function UserMap() {
       logger.info('result:' + rows[i].userid + ', ' + rows[i].deviceid);
       var json = {
         state: 0,
-        currentItem: 'none'
+        currentItem: ['none', 'none']
       };
       self.map.set(rows[i].userid, json);
       self.deviceMap.set(rows[i].deviceid, rows[i].userid);
@@ -85,31 +85,45 @@ UserMap.prototype.getUserid = function(device) {
   return 'nosuchuser';
 }
 
-UserMap.prototype.setCurrentItem = function(user, item) {
+UserMap.prototype.setCurrentItem = function(user, item1, item2) {
+  var item1 = item1 || 'null';
+  var item2 = item2 || 'null';
   var self = this;
   if (self.map.has(user)) {
     logger.info('Found user: ' + user);
     var data = self.map.get(user);
-    data.currentItem = item;
+
+    data.currentItem[0] = item1;
+    data.currentItem[1] = item2;
+      
     self.map.set(user, data);
-    logger.info('setCurrentItem:' + user +':' + item);
   }
 }
 
-UserMap.prototype.getCurrentItem = function(user) {
+UserMap.prototype.getCurrentItem = function(user, itemNumber) {
   var self = this;
   if (self.map.has(user)) {
     var data = self.map.get(user);
-    logger.info('GetCurrentItem: ' + user + 'currentItem: ' + data.currentItem);
+    var item = data.currentItem[itemNumber];
+    return item;
+  } else {
+    logger.info('user not found:' + user);
+  }
+}
+
+UserMap.prototype.getCurrentItems = function(user) {
+  var self = this;
+  if (self.map.has(user)) {
+    var data = self.map.get(user);
     return data.currentItem;
   } else {
     logger.info('user not found:' + user);
   }
 }
 
-UserMap.prototype.addCurrentItemToDB = function(user) {
+UserMap.prototype.addCurrentItemToDB = function(user, itemNumber) {
   var self = this;
-  var item = self.getCurrentItem(user);
+  var item = self.getCurrentItem(user, itemNumber);
   var queryString = 'INSERT INTO Inventory VALUES (' + '\'' + user +'\',\'' +
     item + '\')';
   logger.info('QueryString: ' + queryString);
@@ -120,7 +134,7 @@ UserMap.prototype.addCurrentItemToDB = function(user) {
       logger.info(item + ' inserted');
     }
   });
-  self.setCurrentItem(user, 'none');
+  self.setCurrentItem(user, 'none', 'none');
 }
 
 UserMap.prototype.addItemToDB = function(user, item) {
@@ -135,7 +149,7 @@ UserMap.prototype.addItemToDB = function(user, item) {
       logger.info(item + ' inserted');
     }
   });
-  self.setCurrentItem(user, 'none');
+  self.setCurrentItem(user, 'none', 'none');
 }
 
 UserMap.prototype.removeItemFromDB = function(user, item, done) {
@@ -151,7 +165,7 @@ UserMap.prototype.removeItemFromDB = function(user, item, done) {
     }
     done();
   });
-  self.setCurrentItem(user, 'none');
+  self.setCurrentItem(user, 'none', 'none');
 }
 
 UserMap.prototype.getInventory = function(user, done) {
@@ -169,8 +183,9 @@ UserMap.prototype.getInventory = function(user, done) {
   });
 }
 
-UserMap.prototype.getMealsForUser = function(user, done) {
+UserMap.prototype.getMealsForUser = function(message, done) {
   var self = this;
+  var user = message.from;
   // Clear out any previous meals search:
   self.recipeMap.delete(user);
   // Order the ingredients randomly so we can call 'meals' multiple times and get
@@ -183,9 +198,11 @@ UserMap.prototype.getMealsForUser = function(user, done) {
     } else {
       var params = '&include_primarycat=maindish,sidedish,appetizers&include_ing=';
       var i = 0;
+      var recipeIngredients = [];
       while (i < 3 && i < rows.length) {
         params = params.concat(encodeURIComponent(rows[i].ingredient));
         logger.info(rows[i].ingredient);
+        recipeIngredients[i] = rows[i].ingredient;
         i++;
         if (i < 3 && i < rows.length) {
           params = params.concat(',');
@@ -194,6 +211,7 @@ UserMap.prototype.getMealsForUser = function(user, done) {
       params = params.concat('&api_key=' + self.bigOvenApiKey);
 
       logger.info('Params are: ' + params);
+      message.reply('Looking for recipes using these ingredients: ' + recipeIngredients.join('\n'));
 
       var options = {
         host: 'api2.bigoven.com',

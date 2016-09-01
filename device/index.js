@@ -7,6 +7,8 @@ var fs = require('fs');
 var nconf = require('nconf');
 var sl = require('simple-node-logger');
 var jsonfile = require('jsonfile')
+var AWS = require ('aws-sdk');
+var uuid = require('node-uuid');
 
 var opts = {
     logFilePath:__dirname + '/log.log',
@@ -21,10 +23,23 @@ nconf.argv()
    .env()
    .file({ file: __dirname + '/config.json' });
 
+var cs_apikey = nconf.get('api_key2');
+
+var cloudsight = require ('cloudsight') ({
+  apikey: cs_apikey
+});
+
+var testPicturePrefix = 'test_picture';
+var testPictureFileName = __dirname + '/' + testPicturePrefix + '.jpg';
+
 var board = new five.Board({
   io: new Raspi(),
   repl: false
 });
+
+AWS.config.loadFromPath('./credentials.json');
+
+var s3 = new AWS.S3();
 
 board.on("ready", function() {
 	var button = new five.Button({
@@ -62,12 +77,18 @@ board.on("ready", function() {
 					led.stop();
 					led.off();
 
-          processPicture();
+			            processPicture1(function(item1) {
+                                        logger.info('processPicture1 returned ' + item1);
+                                        processPicture2(function(item2) {
+                                           logger.info('processPicture2 returned ' + item2);
+                                           postToServer(item1, item2);
+                                        });
+                                    });
 
-					clearTimeout(processTimeout);
-					processTimeout = null;
+				    clearTimeout(processTimeout);
+				    processTimeout = null;
 
-					downTimes = 0;
+				    downTimes = 0;
 				});
 			}, BUTTON_DOUBLE_CLICK_TIMEOUT)
 		}
@@ -91,17 +112,71 @@ function takePicture (cb) {
 	webcam.capture(__dirname + '/test_picture', cb);
 }
 
-function processPicture() {
-  var item_array = [];
 
+function postToServer(item1String, item2String) {
+
+  uploadImage(function(key) {
+    var itemString = 'result-1:' + item1String + 'result-2:' + item2String + 'end-results';
+    var post_options = {
+      host: nconf.get('host'),
+      port: '8080',
+      path: '/item',
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json'
+      }
+    };
+
+    var post_req = http.request(post_options, function(res) {
+      logger.info('completed the post: ' + res.statusCode);
+    });
+    // post the data
+    var post_data = {
+      deviceid: nconf.get('user_key'),
+      item: itemString,
+      uuid: key
+    };
+    post_req.write(JSON.stringify(post_data));
+    post_req.end();
+  });
+}
+
+function uploadImage(cb) {
+  var bucketName = 'pantry-storage';
+  var namePrefix = uuid.v4();
+  var imageKeyName = 'test-folder/image-' + namePrefix + '.jpg';
+  var metaKeyName  = 'test-folder/image-' + namePrefix + '.txt';
+  fs.readFile(testPictureFileName, (err, data) => {
+    if (err) {
+      console.log('Error reading image file:', err);
+      cb();
+    } else {
+
+      s3.putObject({Bucket: bucketName, Key: imageKeyName, Body: data}, function(err, data) {
+        if (err) {
+         console.log(err);
+        }
+        else {
+          console.log("Successfully uploaded image to " + bucketName + "/" + imageKeyName);
+          cb(metaKeyName);
+        } 
+      });
+
+    }
+  });
+}
+
+function processPicture1(callback) {
+  var item_array = [];
+       
   var visual_recognition = watson.visual_recognition({
-    api_key: nconf.get('api_key'),
+    api_key: nconf.get('api_key1'),
     version: 'v3',
     version_date: '2016-05-19'
   });
 
   var params = {
-    images_file: fs.createReadStream(__dirname + '/test_picture.jpg'),
+    images_file: fs.createReadStream(testPictureFileName),
     classifier_ids: []
   };
 
@@ -144,34 +219,42 @@ function processPicture() {
         logger.info(item);
       });
       if (item_array.length > 0) {
-        postToServer(item_array[0]);
+        callback(item_array[0]);
       } else {
-        postToServer('NoResults');
+        callback('NoResults');
       }
     });
   });
+}
 
-  function postToServer(itemString) {
-    var post_options = {
-      host: nconf.get('host'),
-      path: '/item',
-      method: 'POST',
-      headers: {
-          'Content-Type': 'application/json'
+function processPicture2(callback) {
+
+  var image = {
+    image: testPictureFileName,
+    locale: 'en-US'
+  };
+
+  cloudsight.request (image, true, function(err, item) {
+    if (err) {
+      logger.info('cloudsight image recognition error: ' + err);
+      callback('NoResults');
+    }
+    else {
+      if (item.status === 'completed') {
+        // "image dated 2016-08-19"
+        if (item.name.match(/\d\d\d\d-\d\d-\d\d/)) {
+          logger.info('processPicture2: Looks like the image couldn\'t be recognized');
+          callback('NoResults');
+        }
+        else {
+          var name = item.name;
+          callback(name);
+        }
+      } else {
+        callback('NoResults');
       }
-    };
-
-    var post_req = http.request(post_options, function(res) {
-      logger.info('completed the post: ' + res.statusCode);
-    });
-    // post the data
-    var post_data = {
-      deviceid: nconf.get('user_key'),
-      item: itemString
-    };
-    post_req.write(JSON.stringify(post_data));
-    post_req.end();
-  }
+    }
+  });
 }
 
 // Log uncaught exceptions.

@@ -15,6 +15,12 @@ let Bot = require('@kikinteractive/kik');
 var app = express();
 var users = new UserMap();
 var logger = new Logger().getLogger();
+var AWS = require ('aws-sdk');
+
+AWS.config.loadFromPath('./credentials.json');
+
+var s3 = new AWS.S3();
+
 // Use nconf to get the configuration for different APIs we are using.
 nconf.argv()
    .env()
@@ -49,6 +55,12 @@ var options = {
  *  "recipe", "request", "success", 1
  */
 var metrics = new Metrics('555666777888', options);
+
+// constants to keep track of the items returned from the two item recognition services
+var ITEM_1 = 0;
+var ITEM_2 = 1;
+var currentItem;
+var uuid;
 
 /* The simple smartkitchen kikbot grammar is as follows:
  * add <item> - adds item to the inventory
@@ -115,7 +127,7 @@ bot.onTextMessage((message, next) => {
 bot.onTextMessage((message, next) => {
   if (message.body.toLowerCase().localeCompare('meals') == 0) {
     metrics.recordEvent('meals', 'request', 'success', 1, message.from);
-    users.getMealsForUser(message.from, function(meals) {
+    users.getMealsForUser(message, function(meals) {
       message.reply('Meals are: ' + meals);
     });
   } else {
@@ -124,10 +136,54 @@ bot.onTextMessage((message, next) => {
 });
 
 bot.onTextMessage((message, next) => {
-  if (message.body.toLowerCase().localeCompare('y') == 0) {
+  var currentItems = users.getCurrentItems(message.from);
+  var currentItem1 = currentItems[0];
+  var currentItem2 = currentItems[1];
+
+  if (message.body.toLowerCase().localeCompare('1') == 0) {
     message.reply('Awesome! We are adding this to your inventory!');
-    users.addCurrentItemToDB(message.from);
-    metrics.recordEvent("inventory", "visual identify", "success", 1, message.from);
+
+    // If the user chose '1', it means both image recognition services returned a response
+    // for the item and the user indicated the response of the first service was correct.
+    // Add the item as returned by the first service to the DB and record the appropriate
+    // metrics.
+    users.addCurrentItemToDB(message.from, ITEM_1);
+    metrics.recordEvent("inventory", "visual identify 1", "success", 1, message.from);
+    metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
+    uploadMetadata(currentItem1, 'success', currentItem2, 'failure');
+  } else if (message.body.toLowerCase().localeCompare('2') == 0) {
+    message.reply('Awesome! We are adding this to your inventory!');
+
+    // If the user chose '2', it means both image recognition services returned a response
+    // for the item and the user indicated the response of the second service was correct.
+    // Add the item as returned by the second service to the DB and record the appropriate
+    // metrics.
+    users.addCurrentItemToDB(message.from, ITEM_2);
+    metrics.recordEvent("inventory", "visual identify 2", "success", 1, message.from);
+    metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
+    uploadMetadata(currentItem1, 'failure', currentItem2, 'success');
+  } else if (message.body.toLowerCase().localeCompare('y') == 0) {
+    message.reply('Awesome! We are adding this to your inventory!');
+
+    // If the user chose 'y', it means one image recognition service returned a response
+    // for the item and the other did not; and that the user indicated the response 
+    // returned was correct.
+    // Add the item that was correctly returned by the service to the DB and record the appropriate
+    // metrics.
+
+    users.addCurrentItemToDB(message.from, currentItem);
+    switch(currentItem) {
+      case ITEM_1:
+        metrics.recordEvent("inventory", "visual identify 1", "success", 1, message.from);
+        metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
+        uploadMetadata(currentItem1, 'success', currentItem2, 'failure');
+        break;
+      case ITEM_2:
+        metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
+        metrics.recordEvent("inventory", "visual identify 2", "success", 1, message.from);
+        uploadMetadata(currentItem1, 'failure', currentItem2, 'success');
+        break;
+    }
   } else {
     next();
   }
@@ -137,7 +193,14 @@ bot.onTextMessage((message, next) => {
   if (message.body.toLowerCase().localeCompare('n') == 0) {
     users.setStateByUser(message.from, 0);
     message.reply('Sorry about that!  You can enter the item manually by typing add <item> (e.g. \'add potato\')');
-    metrics.recordEvent("inventory", "visual identify", "fail", 1, message.from);
+
+    // If the user chose 'n', it means one image recognition service returned a response,
+    // and the user indicated it was incorrect, and that the other recognition service could
+    // not recognize the item.
+    metrics.recordEvent("inventory", "visual identify 1", "fail", 1, message.from);
+    metrics.recordEvent("inventory", "visual identify 2", "fail", 1, message.from);
+    var currentItems = users.getCurrentItems(message.from);
+    uploadMetadata(currentItems[0], 'failure', currentItems[1], 'failure');
   } else {
     next();
   }
@@ -219,7 +282,7 @@ bot.onTextMessage((message, next) => {
 // from the bot itself.  We can eventually remove this.
 function triggerItemConfirmationFlow(item, user) {
   users.setStateByUser(user, 0);
-  bot.send(Bot.Message.text('Hey, is this a: ' + item + '?.  Type (y)es or (n)o'), user);
+  bot.send(Bot.Message.text('Hey, is this a: ' + item + '?.  Type 1, 2, or (n)either'), user);
 }
 
 // These need to be declared ahead of any of the post or get handlers.
@@ -236,21 +299,51 @@ app.use(bodyParser.json());
 app.post('/item',  function(req, res) {
   logger.info('got an item post');
   var deviceid = req.body.deviceid;
-  var item = req.body.item;
+  var itemString = req.body.item;
+  uuid = req.body.uuid;
+
   var type = req.body.rec_type || 'visual';
-  logger.info('deviceid: ' + deviceid + '. item: ' + item);
+  logger.info('deviceid: ' + deviceid);
+  logger.info('nitem: ' + itemString);
+  logger.info('uuid: ' + uuid);
   if (users.isDevice(deviceid)) { //TODO:  Check for undefined
     var userid = users.getUserid(deviceid);
     logger.info('user for device id ' + deviceid + ': ' + userid);
     users.setStateByUser(userid, 0);
-    if (item.localeCompare('NoResults') == 0) {
+    // result-1:personresult-2:man's handend-results
+    var re = /result-\d:(.+)result-\d:(.+)end-results/;
+    var results = re.exec(itemString);
+    var result1 = results[1];
+    var result2 = results[2];
+    logger.info('result 1: ' + result1 + ', result 2: ' + result2);
+    if (result1 === 'NoResults' && result2 === 'NoResults') {
       bot.send(Bot.Message.text('Sorry, nothing was recognized.  Try again and ' +
                                 'adjust the lighting, hold the camera still, and aim it ' +
                                 'directly at the object with no background objects.'), userid);
+      metrics.recordEvent("inventory", "visual identify 1", "fail", 1, userid);
+      metrics.recordEvent("inventory", "visual identify 2", "fail", 1, userid);
+      uploadMetadata(result1, 'failure', result2, 'failure');
+    } else if ((result1 === 'NoResults' && result2 !== 'NoResults') || 
+               (result1 !== 'NoResults' && result2 === 'NoResults')) {
+      logger.info('One recognition service recognized the item and the other did not recognize the item');
+      var item;
+      if (result1 === 'NoResults') {
+        logger.info('first recognition service did not recognize, second said: ' + result2);
+        users.setCurrentItem(userid, null, result2);
+        currentItem = ITEM_2;
+        item = result2;
+      }
+      else {
+        logger.info('second recognition service did not recognize, first said: ' + result1);
+        users.setCurrentItem(userid, result1, null);
+        currentItem = ITEM_1;
+        item = result1;
+      }
+      bot.send(Bot.Message.text('Hey, is this a(n):\n' + item + '?\nType (y)es, or (n)o'), userid);
     } else {
-      bot.send(Bot.Message.text('Hey, is this a(n): ' + item + '?  Type (y)es or (n)o'), userid);
+      bot.send(Bot.Message.text('Hey, is this a(n):\n' + '1. ' + result1 + '?\n2. ' + result2 + '?\n' + 'Type 1, 2, or (n)either'), userid);
       //Save the current item with the user so we can come back to it later once it's confirmed.
-      users.setCurrentItem(userid, item);
+      users.setCurrentItem(userid, result1, result2);
     }
     res.status(200).send('OK');
   } else {
@@ -272,3 +365,19 @@ app.get('/about', function(req, res) {
 app.listen(process.env.PORT || 8080, function() {
 	logger.info('Server started on port ' + (process.env.PORT || 8080));
 });
+
+function uploadMetadata(item1, result1, item2, result2) {
+    var item1 = (item1) || 'NoResult';
+    var item2 = (item2) || 'NoResult';
+
+    var metaData = 'watson:\t\t' + item1 + ' (' + result1 + ')\ncloudsight:\t' + item2 + ' (' + result2 + ')\n';
+    var bucketName = 'pantry-storage';
+    s3.putObject({Bucket: bucketName, Key: uuid, Body: metaData}, function(err, data) {
+      if (err) {
+        console.log(err);
+      } else {
+        logger.info("Successfully uploaded metadata to " + bucketName + "/" + uuid);
+      }
+    });
+}
+
