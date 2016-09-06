@@ -37,7 +37,7 @@ var board = new five.Board({
   repl: false
 });
 
-AWS.config.loadFromPath('./credentials.json');
+AWS.config.loadFromPath(__dirname + '/credentials.json');
 
 var s3 = new AWS.S3();
 
@@ -119,7 +119,7 @@ function postToServer(item1String, item2String) {
     var itemString = 'result-1:' + item1String + 'result-2:' + item2String + 'end-results';
     var post_options = {
       host: nconf.get('host'),
-      port: '8080',
+      port: '80',
       path: '/item',
       method: 'POST',
       headers: {
@@ -148,16 +148,16 @@ function uploadImage(cb) {
   var metaKeyName  = 'test-folder/image-' + namePrefix + '.txt';
   fs.readFile(testPictureFileName, (err, data) => {
     if (err) {
-      console.log('Error reading image file:', err);
+      logger.info('Error reading image file:', err);
       cb();
     } else {
 
       s3.putObject({Bucket: bucketName, Key: imageKeyName, Body: data}, function(err, data) {
         if (err) {
-         console.log(err);
+         logger.info(err);
         }
         else {
-          console.log("Successfully uploaded image to " + bucketName + "/" + imageKeyName);
+          logger.info("Successfully uploaded image to " + bucketName + "/" + imageKeyName);
           cb(metaKeyName);
         } 
       });
